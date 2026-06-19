@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The Producer's Ledger</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root {
+    --ink: #14110f; --paper: #f3ede1; --card: #fbf8f1; --line: #d9cfba;
+    --brass: #b5803a; --brass-soft: #e3c98f; --green: #3f6b4a; --red: #a23b2d;
+    --muted: #7a7164; --shadow: 0 1px 0 #fff inset, 0 2px 14px rgba(20,17,15,.07);
+  }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family: "Iowan Old Style","Palatino Linotype",Georgia,serif; color: var(--ink);
+    background: radial-gradient(circle at 12% 0%, #fbf8f1 0, transparent 60%), var(--paper); min-height:100vh; }
+  .wrap { padding: 28px clamp(16px,4vw,44px) 60px; }
+
+  /* LOGIN */
+  #login { max-width: 380px; margin: 12vh auto; }
+  #login .card { padding: 28px; }
+  #login h1 { font-size: 30px; margin: 0 0 4px; }
+  #login .sub { font-family:"Helvetica Neue",Arial,sans-serif; text-transform:uppercase; letter-spacing:3px; font-size:11px; color:var(--muted); margin-bottom:22px;}
+  #login input { margin-bottom:12px; }
+  #login .btn { width:100%; margin-top:4px; }
+  #login .alt { text-align:center; margin-top:14px; font-size:13px; color:var(--muted);}
+  #login .alt a { color:var(--brass); cursor:pointer; text-decoration:underline;}
+  #authMsg { font-size:13px; margin-top:10px; min-height:18px; font-family:"Helvetica Neue",Arial,sans-serif;}
+  #authMsg.err { color:var(--red);} #authMsg.ok { color:var(--green);}
+
+  .masthead { display:flex; justify-content:space-between; align-items:flex-end; border-bottom:3px double var(--ink); padding-bottom:14px; }
+  .masthead h1 { font-size:clamp(28px,5vw,44px); letter-spacing:-.5px; margin:0; line-height:.95; }
+  .masthead .sub { font-family:"Helvetica Neue",Arial,sans-serif; text-transform:uppercase; letter-spacing:3px; font-size:11px; color:var(--muted); margin-top:6px; }
+  .acct { font-family:"Helvetica Neue",Arial,sans-serif; font-size:11px; letter-spacing:1px; color:var(--muted); text-align:right;}
+  .acct b { display:block; color:var(--ink); font-family:Georgia,serif; font-size:14px; letter-spacing:0; margin-bottom:4px;}
+  .acct a { color:var(--brass); cursor:pointer; text-decoration:underline;}
+
+  nav { display:flex; gap:2px; flex-wrap:wrap; margin:18px 0 22px; border-bottom:1px solid var(--line); }
+  nav button { font-family:"Helvetica Neue",Arial,sans-serif; background:none; border:none; cursor:pointer; padding:11px 18px; font-size:13px; letter-spacing:.5px; color:var(--muted); border-bottom:3px solid transparent; margin-bottom:-1px; }
+  nav button:hover { color:var(--ink);} nav button.active { color:var(--ink); border-bottom-color:var(--brass); font-weight:600; }
+
+  .panel { display:none; } .panel.active { display:block; animation:fade .25s ease; }
+  @keyframes fade { from{opacity:0;transform:translateY(4px);} to{opacity:1;transform:none;} }
+
+  .kpis { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:14px; margin-bottom:26px; }
+  .kpi { background:var(--card); border:1px solid var(--line); border-radius:3px; padding:16px 18px; box-shadow:var(--shadow); position:relative; overflow:hidden; }
+  .kpi::before { content:""; position:absolute; left:0; top:0; bottom:0; width:4px; background:var(--brass); }
+  .kpi .label { font-family:"Helvetica Neue",Arial,sans-serif; font-size:10px; text-transform:uppercase; letter-spacing:2px; color:var(--muted);}
+  .kpi .val { font-size:30px; margin-top:4px; letter-spacing:-1px;} .kpi .val.pos{color:var(--green);} .kpi .val.neg{color:var(--red);}
+  .kpi .foot { font-size:12px; color:var(--muted); margin-top:2px;}
+
+  .card { background:var(--card); border:1px solid var(--line); border-radius:3px; padding:20px; box-shadow:var(--shadow); margin-bottom:22px; }
+  .card h2 { font-size:15px; font-family:"Helvetica Neue",Arial,sans-serif; text-transform:uppercase; letter-spacing:2px; margin:0 0 16px; display:flex; align-items:center; gap:10px; }
+  .card h2::after { content:""; flex:1; height:1px; background:var(--line); }
+
+  .row { display:grid; gap:12px; grid-template-columns:repeat(auto-fit,minmax(120px,1fr)); align-items:end; }
+  label { display:block; font-family:"Helvetica Neue",Arial,sans-serif; font-size:10px; text-transform:uppercase; letter-spacing:1.5px; color:var(--muted); margin-bottom:5px;}
+  input,select { width:100%; padding:9px 10px; border:1px solid var(--line); border-radius:3px; background:#fff; font-family:Georgia,serif; font-size:14px; color:var(--ink);}
+  input:focus,select:focus { outline:2px solid var(--brass-soft); border-color:var(--brass);}
+  .btn { font-family:"Helvetica Neue",Arial,sans-serif; cursor:pointer; background:var(--ink); color:var(--paper); border:none; padding:10px 20px; border-radius:3px; font-size:13px; letter-spacing:.5px;}
+  .btn:hover { background:var(--brass);}
+  table { width:100%; border-collapse:collapse; font-size:14px;}
+  th { font-family:"Helvetica Neue",Arial,sans-serif; font-size:10px; text-transform:uppercase; letter-spacing:1.5px; color:var(--muted); text-align:left; padding:8px 10px; border-bottom:1px solid var(--ink);}
+  td { padding:9px 10px; border-bottom:1px solid var(--line);}
+  tr:last-child td { border-bottom:none;}
+  td.num,th.num { text-align:right; font-variant-numeric:tabular-nums;}
+  .pos{color:var(--green);} .neg{color:var(--red);}
+  .pill { font-family:"Helvetica Neue",Arial,sans-serif; font-size:10px; letter-spacing:1px; text-transform:uppercase; padding:3px 8px; border-radius:20px;}
+  .pill.active{background:#e3efe5;color:var(--green);} .pill.cold{background:#f0e6e3;color:var(--red);} .pill.warm{background:#f5ecd6;color:var(--brass);}
+  .x { color:var(--muted); cursor:pointer; font-size:16px; line-height:1;} .x:hover{color:var(--red);}
+  .empty { color:var(--muted); font-style:italic; text-align:center; padding:24px;}
+  .month-pick { font-family:"Helvetica Neue",Arial,sans-serif; font-size:13px;}
+  .bars { display:flex; gap:6px; align-items:flex-end; height:120px; margin-top:8px;}
+  .bar { flex:1; background:var(--brass-soft); border-radius:3px 3px 0 0; position:relative; min-height:2px;}
+  .bar span { position:absolute; bottom:-20px; left:0; right:0; text-align:center; font-size:10px; color:var(--muted); font-family:"Helvetica Neue",Arial,sans-serif;}
+  .barwrap { padding-bottom:24px;}
+  .sync { font-size:12px; color:var(--muted); font-family:"Helvetica Neue",Arial,sans-serif; font-style:italic;}
+</style>
+</head>
+<body>
+
+<!-- ===== LOGIN SCREEN ===== -->
+<div id="login" class="wrap">
+  <div class="card">
+    <h1>The Producer's Ledger</h1>
+    <div class="sub">Sign in to your books</div>
+    <input type="email" id="email" placeholder="Email" autocomplete="email">
+    <input type="password" id="pw" placeholder="Password" autocomplete="current-password">
+    <button class="btn" id="signinBtn" onclick="signIn()">Sign in</button>
+    <div class="alt">First time? <a onclick="signUp()">Create your account</a></div>
+    <div id="authMsg"></div>
+  </div>
+</div>
+
+<!-- ===== APP ===== -->
+<div id="app" class="wrap" style="display:none;">
+  <div class="masthead">
+    <div>
+      <h1>The Producer's Ledger</h1>
+      <div class="sub">Lead Spend · Annual Premium · Time · Team</div>
+    </div>
+    <div class="acct"><b id="who">—</b><a onclick="signOut()">Sign out</a></div>
+  </div>
+
+  <nav id="tabs">
+    <button class="active" data-tab="dash">Dashboard</button>
+    <button data-tab="leads">Lead Spend</button>
+    <button data-tab="ap">AP &amp; Sales</button>
+    <button data-tab="time">Hours &amp; Days</button>
+    <button data-tab="team">Downline</button>
+  </nav>
+
+  <section class="panel active" id="dash">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;flex-wrap:wrap;gap:10px;">
+      <label style="margin:0;">Viewing Month</label>
+      <input type="month" id="monthSel" class="month-pick" style="width:auto;">
+    </div>
+    <div class="kpis" id="kpis"></div>
+    <div class="card"><h2>Cost Per Sale Trend</h2><div class="barwrap"><div class="bars" id="cpaBars"></div></div></div>
+    <div class="card"><h2>Return on Lead Spend (AP ÷ Spend)</h2><div class="barwrap"><div class="bars" id="roiBars"></div></div></div>
+  </section>
+
+  <section class="panel" id="leads">
+    <div class="card"><h2>Log Lead Spend</h2>
+      <div class="row">
+        <div><label>Date</label><input type="date" id="l_date"></div>
+        <div><label>Source / Vendor</label><input id="l_src" placeholder="GOAT Leads, EverQuote…"></div>
+        <div><label>Lead Type</label><select id="l_type"><option>Aged</option><option>Real-time</option><option>Mortgage Protection</option><option>Veteran</option><option>Final Expense</option><option>Referral</option><option>Other</option></select></div>
+        <div><label>Qty</label><input type="number" id="l_qty" min="0" placeholder="50"></div>
+        <div><label>Total Spend ($)</label><input type="number" id="l_cost" min="0" step="0.01" placeholder="250"></div>
+        <div><button class="btn" onclick="addLead()">Add Entry</button></div>
+      </div>
+    </div>
+    <div class="card"><h2>Lead Spend Log</h2>
+      <table><thead><tr><th>Date</th><th>Source</th><th>Type</th><th class="num">Qty</th><th class="num">Spend</th><th class="num">Cost/Lead</th><th></th></tr></thead><tbody id="leadBody"></tbody></table>
+    </div>
+  </section>
+
+  <section class="panel" id="ap">
+    <div class="card"><h2>Log Sale / Annual Premium</h2>
+      <div class="row">
+        <div><label>Date</label><input type="date" id="a_date"></div>
+        <div><label>Client</label><input id="a_client" placeholder="Last name"></div>
+        <div><label>Carrier</label><select id="a_carrier"><option>Transamerica</option><option>Ethos</option><option>Americo</option><option>American Amicable</option><option>Other</option></select></div>
+        <div><label>Product</label><input id="a_product" placeholder="IUL, Term, FE…"></div>
+        <div><label>Annual Premium ($)</label><input type="number" id="a_ap" min="0" step="0.01" placeholder="1200"></div>
+        <div><label>Status</label><select id="a_status"><option>Submitted</option><option>Approved</option><option>Issued</option><option>Pending</option><option>Declined</option></select></div>
+        <div><button class="btn" onclick="addSale()">Add Sale</button></div>
+      </div>
+    </div>
+    <div class="card"><h2>Sales Log</h2>
+      <table><thead><tr><th>Date</th><th>Client</th><th>Carrier</th><th>Product</th><th class="num">AP</th><th>Status</th><th></th></tr></thead><tbody id="saleBody"></tbody></table>
+    </div>
+  </section>
+
+  <section class="panel" id="time">
+    <div class="card"><h2>Log Work Day</h2>
+      <div class="row">
+        <div><label>Date</label><input type="date" id="t_date"></div>
+        <div><label>Hours Worked</label><input type="number" id="t_hours" min="0" step="0.25" placeholder="8"></div>
+        <div><label>Dials / Contacts</label><input type="number" id="t_dials" min="0" placeholder="120"></div>
+        <div><label>Appts Set</label><input type="number" id="t_appts" min="0" placeholder="4"></div>
+        <div><label>Notes</label><input id="t_notes" placeholder="optional"></div>
+        <div><button class="btn" onclick="addDay()">Add Day</button></div>
+      </div>
+    </div>
+    <div class="card"><h2>Work Log</h2>
+      <table><thead><tr><th>Date</th><th class="num">Hours</th><th class="num">Dials</th><th class="num">Appts</th><th>Notes</th><th></th></tr></thead><tbody id="dayBody"></tbody></table>
+    </div>
+  </section>
+
+  <section class="panel" id="team">
+    <div class="card"><h2>Add / Update Downline Agent</h2>
+      <div class="row">
+        <div><label>Agent Name</label><input id="d_name" placeholder="Full name"></div>
+        <div><label>Tier</label><select id="d_tier"><option>Personal Recruit</option><option>Level 2</option><option>Level 3+</option></select></div>
+        <div><label>Status</label><select id="d_status"><option>Active</option><option>Warming</option><option>Inactive</option></select></div>
+        <div><label>Their AP This Mo. ($)</label><input type="number" id="d_ap" min="0" placeholder="4000"></div>
+        <div><label>Their Sales</label><input type="number" id="d_sales" min="0" placeholder="3"></div>
+        <div><label>Last Contact</label><input type="date" id="d_contact"></div>
+        <div><button class="btn" onclick="addAgent()">Save Agent</button></div>
+      </div>
+    </div>
+    <div class="kpis" id="teamKpis"></div>
+    <div class="card"><h2>Team Roster</h2>
+      <table><thead><tr><th>Agent</th><th>Tier</th><th>Status</th><th class="num">AP (mo)</th><th class="num">Sales</th><th>Last Contact</th><th></th></tr></thead><tbody id="teamBody"></tbody></table>
+    </div>
+  </section>
+</div>
+
+<script>
+// ===== Supabase connection =====
+const SUPABASE_URL = "https://eblopzfcftsulhtvextj.supabase.co";
+const SUPABASE_KEY = "sb_publishable_-9zVR_nmKMvcGFv7CoDxkA_l_6ugGQX";
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+const $ = id => document.getElementById(id);
+const money = n => "$" + (Number(n)||0).toLocaleString(undefined,{maximumFractionDigits:0});
+const ym = d => (d||"").slice(0,7);
+let curMonth = new Date().toISOString().slice(0,7);
+let leads=[], sales=[], days=[], team=[];
+
+// ===== AUTH =====
+function msg(t,cls){const m=$("authMsg");m.textContent=t;m.className=cls||"";}
+async function signUp(){
+  const email=$("email").value.trim(), password=$("pw").value;
+  if(!email||!password){msg("Enter an email and password.","err");return;}
+  msg("Creating your account…");
+  const {error}=await sb.auth.signUp({email,password});
+  if(error){msg(error.message,"err");return;}
+  msg("Account created. Signing you in…","ok");
+  signIn();
+}
+async function signIn(){
+  const email=$("email").value.trim(), password=$("pw").value;
+  if(!email||!password){msg("Enter an email and password.","err");return;}
+  msg("Signing in…");
+  const {error}=await sb.auth.signInWithPassword({email,password});
+  if(error){msg(error.message,"err");return;}
+  // session handled by listener
+}
+async function signOut(){ await sb.auth.signOut(); }
+
+sb.auth.onAuthStateChange((_e,session)=>{
+  if(session){ showApp(session.user); } else { showLogin(); }
+});
+function showLogin(){ $("login").style.display="block"; $("app").style.display="none"; }
+async function showApp(user){
+  $("login").style.display="none"; $("app").style.display="block"; $("who").textContent=user.email;
+  $("monthSel").value=curMonth;
+  const today=new Date().toISOString().slice(0,10);
+  ["l_date","a_date","t_date","d_contact"].forEach(i=>$(i).value=today);
+  await refresh();
+}
+
+// ===== DATA =====
+async function refresh(){
+  const [L,S,D,T]=await Promise.all([
+    sb.from("leads").select("*").order("date"),
+    sb.from("sales").select("*").order("date"),
+    sb.from("work_days").select("*").order("date"),
+    sb.from("downline").select("*").order("ap",{ascending:false})
+  ]);
+  leads=L.data||[]; sales=S.data||[]; days=D.data||[]; team=T.data||[];
+  renderAll();
+}
+async function insert(table,obj){ const {error}=await sb.from(table).insert(obj); if(error)alert("Save failed: "+error.message); await refresh(); }
+async function remove(table,id){ const {error}=await sb.from(table).delete().eq("id",id); if(error)alert("Delete failed: "+error.message); await refresh(); }
+async function upsert(table,obj,id){ const {error}= id? await sb.from(table).update(obj).eq("id",id) : await sb.from(table).insert(obj); if(error)alert("Save failed: "+error.message); await refresh(); }
+
+// ===== ADD =====
+function addLead(){ if(!$("l_cost").value)return;
+  insert("leads",{date:$("l_date").value,src:$("l_src").value||"—",type:$("l_type").value,qty:+$("l_qty").value||0,cost:+$("l_cost").value||0});
+  $("l_src").value=$("l_qty").value=$("l_cost").value=""; }
+function addSale(){ if(!$("a_ap").value)return;
+  insert("sales",{date:$("a_date").value,client:$("a_client").value||"—",carrier:$("a_carrier").value,product:$("a_product").value||"—",ap:+$("a_ap").value||0,status:$("a_status").value});
+  $("a_client").value=$("a_product").value=$("a_ap").value=""; }
+function addDay(){ if(!$("t_hours").value)return;
+  insert("work_days",{date:$("t_date").value,hours:+$("t_hours").value||0,dials:+$("t_dials").value||0,appts:+$("t_appts").value||0,notes:$("t_notes").value||""});
+  $("t_hours").value=$("t_dials").value=$("t_appts").value=$("t_notes").value=""; }
+function addAgent(){ if(!$("d_name").value)return;
+  const ex=team.find(t=>(t.name||"").toLowerCase()===$("d_name").value.toLowerCase());
+  const rec={name:$("d_name").value,tier:$("d_tier").value,status:$("d_status").value,ap:+$("d_ap").value||0,sales:+$("d_sales").value||0,contact:$("d_contact").value||null};
+  upsert("downline",rec, ex?ex.id:null);
+  $("d_name").value=$("d_ap").value=$("d_sales").value=""; }
+
+// ===== NAV =====
+$("tabs").addEventListener("click",e=>{
+  if(e.target.tagName!=="BUTTON")return;
+  document.querySelectorAll("nav button").forEach(b=>b.classList.remove("active"));
+  document.querySelectorAll(".panel").forEach(p=>p.classList.remove("active"));
+  e.target.classList.add("active"); $(e.target.dataset.tab).classList.add("active");
+});
+$("monthSel").addEventListener("change",e=>{curMonth=e.target.value;renderAll();});
+
+// ===== RENDER =====
+function renderAll(){
+  const mL=leads.filter(l=>ym(l.date)===curMonth), mS=sales.filter(s=>ym(s.date)===curMonth), mD=days.filter(d=>ym(d.date)===curMonth);
+  const spend=mL.reduce((a,l)=>a+ +l.cost,0), leadQty=mL.reduce((a,l)=>a+ +l.qty,0);
+  const ap=mS.reduce((a,s)=>a+ +s.ap,0), issued=mS.filter(s=>["Issued","Approved"].includes(s.status)).length;
+  const hours=mD.reduce((a,d)=>a+ +d.hours,0), daysWorked=mD.length, dials=mD.reduce((a,d)=>a+ +d.dials,0);
+  const cpa=mS.length?spend/mS.length:0, roi=spend?ap/spend:0;
+
+  $("kpis").innerHTML = card("Lead Spend",money(spend),leadQty+" leads bought")
+    + card("Annual Premium",money(ap),mS.length+" sales · "+issued+" issued",ap>=spend?"pos":"")
+    + card("Cost / Sale",mS.length?money(cpa):"—","acquisition cost")
+    + card("Return on Spend",spend?roi.toFixed(2)+"×":"—","AP per $1 spent",roi>=1?"pos":(spend?"neg":""))
+    + card("Hours Worked",hours.toFixed(1),daysWorked+" days · "+(daysWorked?(hours/daysWorked).toFixed(1):0)+"/day avg")
+    + card("Dials",dials.toLocaleString(),"this month");
+
+  $("leadBody").innerHTML = mL.length? mL.slice().reverse().map(l=>`<tr><td>${fmt(l.date)}</td><td>${esc(l.src)}</td><td>${l.type}</td><td class="num">${l.qty}</td><td class="num">${money(l.cost)}</td><td class="num">${l.qty?money(l.cost/l.qty):"—"}</td><td><span class="x" onclick="remove('leads','${l.id}')">×</span></td></tr>`).join("") : emptyRow(7,"No lead spend logged for this month.");
+  $("saleBody").innerHTML = mS.length? mS.slice().reverse().map(s=>`<tr><td>${fmt(s.date)}</td><td>${esc(s.client)}</td><td>${s.carrier}</td><td>${esc(s.product)}</td><td class="num">${money(s.ap)}</td><td>${pill(s.status)}</td><td><span class="x" onclick="remove('sales','${s.id}')">×</span></td></tr>`).join("") : emptyRow(7,"No sales logged for this month.");
+  $("dayBody").innerHTML = mD.length? mD.slice().reverse().map(d=>`<tr><td>${fmt(d.date)}</td><td class="num">${d.hours}</td><td class="num">${d.dials}</td><td class="num">${d.appts}</td><td>${esc(d.notes)}</td><td><span class="x" onclick="remove('work_days','${d.id}')">×</span></td></tr>`).join("") : emptyRow(6,"No work days logged for this month.");
+
+  const tAP=team.reduce((a,t)=>a+ +t.ap,0), tSales=team.reduce((a,t)=>a+ +t.sales,0), activeN=team.filter(t=>t.status==="Active").length;
+  $("teamKpis").innerHTML = card("Team Size",team.length,activeN+" active")+card("Team AP (mo)",money(tAP),"downline production")+card("Team Sales",tSales,"this month")+card("Avg AP / Agent",team.length?money(tAP/team.length):"—","");
+  $("teamBody").innerHTML = team.length? team.map(t=>`<tr><td>${esc(t.name)}</td><td>${t.tier}</td><td>${pill(t.status)}</td><td class="num">${money(t.ap)}</td><td class="num">${t.sales}</td><td>${t.contact?fmt(t.contact):"—"}</td><td><span class="x" onclick="remove('downline','${t.id}')">×</span></td></tr>`).join("") : emptyRow(7,"No downline agents yet. Add your first recruit above.");
+
+  renderBars();
+}
+function renderBars(){
+  const months=[]; for(let i=5;i>=0;i--){const d=new Date(curMonth+"-02");d.setMonth(d.getMonth()-i);months.push(d.toISOString().slice(0,7));}
+  const cpaData=months.map(m=>{const sp=leads.filter(l=>ym(l.date)===m).reduce((a,l)=>a+ +l.cost,0);const n=sales.filter(s=>ym(s.date)===m).length;return n?sp/n:0;});
+  const roiData=months.map(m=>{const sp=leads.filter(l=>ym(l.date)===m).reduce((a,l)=>a+ +l.cost,0);const apm=sales.filter(s=>ym(s.date)===m).reduce((a,s)=>a+ +s.ap,0);return sp?apm/sp:0;});
+  drawBars("cpaBars",months,cpaData,v=>v?money(v):"—"); drawBars("roiBars",months,roiData,v=>v?v.toFixed(1)+"×":"—");
+}
+function drawBars(id,months,data,fmtFn){
+  const max=Math.max(...data,0.0001);
+  $(id).innerHTML=months.map((m,i)=>{const h=Math.round((data[i]/max)*100);const lbl=new Date(m+"-02").toLocaleDateString(undefined,{month:"short"});return `<div class="bar" style="height:${data[i]?Math.max(h,3):2}%" title="${fmtFn(data[i])}"><span>${lbl}<br>${fmtFn(data[i])}</span></div>`;}).join("");
+}
+function card(label,val,foot,cls=""){return `<div class="kpi"><div class="label">${label}</div><div class="val ${cls}">${val}</div><div class="foot">${foot||""}</div></div>`;}
+function pill(s){const m={Active:"active",Issued:"active",Approved:"active",Warming:"warm",Pending:"warm",Submitted:"warm",Inactive:"cold",Declined:"cold"};return `<span class="pill ${m[s]||"warm"}">${s}</span>`;}
+function emptyRow(c,msg){return `<tr><td colspan="${c}" class="empty">${msg}</td></tr>`;}
+function fmt(d){return d?new Date(d+"T00:00").toLocaleDateString(undefined,{month:"short",day:"numeric"}):"—";}
+function esc(s){return (s||"").toString().replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));}
+
+// boot
+sb.auth.getSession().then(({data})=>{ if(data.session) showApp(data.session.user); else showLogin(); });
+</script>
+</body>
+</html>
