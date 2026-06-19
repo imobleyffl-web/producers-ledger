@@ -7,83 +7,93 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
   :root {
-    --ink: #14110f; --paper: #f3ede1; --card: #fbf8f1; --line: #d9cfba;
-    --brass: #b5803a; --brass-soft: #e3c98f; --green: #3f6b4a; --red: #a23b2d;
-    --muted: #7a7164; --shadow: 0 1px 0 #fff inset, 0 2px 14px rgba(20,17,15,.07);
+    --bg: #0a0a0c; --bg2: #0e0e12; --panel: #111116; --panel2: #15151c; --edge: #1f1f29;
+    --saber: #ff2630; --saber-soft: #ff5a62;
+    --glow: 0 0 6px rgba(255,38,48,.9), 0 0 16px rgba(255,38,48,.55), 0 0 30px rgba(255,38,48,.3);
+    --glow-soft: 0 0 4px rgba(255,38,48,.6), 0 0 12px rgba(255,38,48,.35);
+    --white: #f7f7fa; --dim: #8b8b96; --dimmer: #5a5a64; --green: #34d27b; --amber: #ffb23e;
   }
   * { box-sizing: border-box; }
-  body { margin:0; font-family: "Iowan Old Style","Palatino Linotype",Georgia,serif; color: var(--ink);
-    background: radial-gradient(circle at 12% 0%, #fbf8f1 0, transparent 60%), var(--paper); min-height:100vh; }
-  .wrap { padding: 28px clamp(16px,4vw,44px) 60px; }
-
-  /* LOGIN */
-  #login { max-width: 380px; margin: 12vh auto; }
-  #login .card { padding: 28px; }
-  #login h1 { font-size: 30px; margin: 0 0 4px; }
-  #login .sub { font-family:"Helvetica Neue",Arial,sans-serif; text-transform:uppercase; letter-spacing:3px; font-size:11px; color:var(--muted); margin-bottom:22px;}
+  html,body { margin:0; }
+  body {
+    font-family: "Inter","Helvetica Neue",Arial,sans-serif; color: var(--white); background: var(--bg); min-height:100vh;
+    background-image:
+      radial-gradient(circle at 50% -10%, rgba(255,38,48,.10) 0, transparent 45%),
+      linear-gradient(rgba(255,255,255,.015) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,255,255,.015) 1px, transparent 1px);
+    background-size: 100% 100%, 44px 44px, 44px 44px;
+  }
+  .wrap { padding: 28px clamp(16px,4vw,44px) 60px; max-width:1280px; margin:0 auto; }
+  .saber-rule { height:2px; border:none; background:var(--saber); box-shadow:var(--glow); margin:0; border-radius:2px; }
+  #login { max-width: 400px; margin: 11vh auto; }
+  #login .card { padding: 32px 28px; }
+  #login h1 { font-size: 28px; margin: 0 0 4px; font-weight:800; letter-spacing:-.5px; }
+  #login .tag { text-transform:uppercase; letter-spacing:4px; font-size:10px; color:var(--saber-soft); text-shadow:var(--glow-soft); margin-bottom:24px; }
   #login input { margin-bottom:12px; }
   #login .btn { width:100%; margin-top:4px; }
-  #login .alt { text-align:center; margin-top:14px; font-size:13px; color:var(--muted);}
-  #login .alt a { color:var(--brass); cursor:pointer; text-decoration:underline;}
-  #authMsg { font-size:13px; margin-top:10px; min-height:18px; font-family:"Helvetica Neue",Arial,sans-serif;}
-  #authMsg.err { color:var(--red);} #authMsg.ok { color:var(--green);}
-
-  .masthead { display:flex; justify-content:space-between; align-items:flex-end; border-bottom:3px double var(--ink); padding-bottom:14px; }
-  .masthead h1 { font-size:clamp(28px,5vw,44px); letter-spacing:-.5px; margin:0; line-height:.95; }
-  .masthead .sub { font-family:"Helvetica Neue",Arial,sans-serif; text-transform:uppercase; letter-spacing:3px; font-size:11px; color:var(--muted); margin-top:6px; }
-  .acct { font-family:"Helvetica Neue",Arial,sans-serif; font-size:11px; letter-spacing:1px; color:var(--muted); text-align:right;}
-  .acct b { display:block; color:var(--ink); font-family:Georgia,serif; font-size:14px; letter-spacing:0; margin-bottom:4px;}
-  .acct a { color:var(--brass); cursor:pointer; text-decoration:underline;}
-
-  nav { display:flex; gap:2px; flex-wrap:wrap; margin:18px 0 22px; border-bottom:1px solid var(--line); }
-  nav button { font-family:"Helvetica Neue",Arial,sans-serif; background:none; border:none; cursor:pointer; padding:11px 18px; font-size:13px; letter-spacing:.5px; color:var(--muted); border-bottom:3px solid transparent; margin-bottom:-1px; }
-  nav button:hover { color:var(--ink);} nav button.active { color:var(--ink); border-bottom-color:var(--brass); font-weight:600; }
-
+  #login .alt { text-align:center; margin-top:16px; font-size:13px; color:var(--dim); }
+  #login .alt a { color:var(--saber-soft); cursor:pointer; text-shadow:var(--glow-soft); }
+  #authMsg { font-size:13px; margin-top:12px; min-height:18px; }
+  #authMsg.err { color:var(--saber-soft); } #authMsg.ok { color:var(--green); }
+  .masthead { display:flex; justify-content:space-between; align-items:flex-end; padding-bottom:14px; }
+  .masthead h1 { font-size:clamp(26px,5vw,42px); letter-spacing:-1px; margin:0; line-height:.95; font-weight:800; }
+  .masthead h1 .dot { color:var(--saber); text-shadow:var(--glow); }
+  .masthead .tag { text-transform:uppercase; letter-spacing:4px; font-size:10px; color:var(--dim); margin-top:8px; }
+  .acct { font-size:11px; letter-spacing:1px; color:var(--dim); text-align:right; }
+  .acct b { display:block; color:var(--white); font-size:13px; letter-spacing:0; margin-bottom:5px; font-weight:600; }
+  .acct a { color:var(--saber-soft); cursor:pointer; text-shadow:var(--glow-soft); }
+  nav { display:flex; gap:4px; flex-wrap:wrap; margin:20px 0 24px; position:relative; }
+  nav::after { content:""; position:absolute; left:0; right:0; bottom:0; height:1px; background:var(--edge); }
+  nav button { background:none; border:none; cursor:pointer; padding:11px 18px; font-size:12px; letter-spacing:1px; text-transform:uppercase; color:var(--dim); border-bottom:2px solid transparent; margin-bottom:-1px; position:relative; z-index:1; font-weight:600; transition:color .15s; }
+  nav button:hover { color:var(--white); }
+  nav button.active { color:var(--white); border-bottom-color:var(--saber); }
+  nav button.active::after { content:""; position:absolute; left:0; right:0; bottom:-1px; height:2px; background:var(--saber); box-shadow:var(--glow); }
   .panel { display:none; } .panel.active { display:block; animation:fade .25s ease; }
   @keyframes fade { from{opacity:0;transform:translateY(4px);} to{opacity:1;transform:none;} }
-
-  .kpis { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:14px; margin-bottom:26px; }
-  .kpi { background:var(--card); border:1px solid var(--line); border-radius:3px; padding:16px 18px; box-shadow:var(--shadow); position:relative; overflow:hidden; }
-  .kpi::before { content:""; position:absolute; left:0; top:0; bottom:0; width:4px; background:var(--brass); }
-  .kpi .label { font-family:"Helvetica Neue",Arial,sans-serif; font-size:10px; text-transform:uppercase; letter-spacing:2px; color:var(--muted);}
-  .kpi .val { font-size:30px; margin-top:4px; letter-spacing:-1px;} .kpi .val.pos{color:var(--green);} .kpi .val.neg{color:var(--red);}
-  .kpi .foot { font-size:12px; color:var(--muted); margin-top:2px;}
-
-  .card { background:var(--card); border:1px solid var(--line); border-radius:3px; padding:20px; box-shadow:var(--shadow); margin-bottom:22px; }
-  .card h2 { font-size:15px; font-family:"Helvetica Neue",Arial,sans-serif; text-transform:uppercase; letter-spacing:2px; margin:0 0 16px; display:flex; align-items:center; gap:10px; }
-  .card h2::after { content:""; flex:1; height:1px; background:var(--line); }
-
+  .kpis { display:grid; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); gap:14px; margin-bottom:26px; }
+  .kpi { background:linear-gradient(160deg,var(--panel2),var(--panel)); border:1px solid var(--edge); border-radius:8px; padding:16px 18px; position:relative; overflow:hidden; }
+  .kpi::before { content:""; position:absolute; left:0; top:14px; bottom:14px; width:3px; background:var(--saber); box-shadow:var(--glow); border-radius:3px; }
+  .kpi .label { font-size:10px; text-transform:uppercase; letter-spacing:2px; color:var(--dim); padding-left:8px; }
+  .kpi .val { font-size:30px; margin-top:6px; letter-spacing:-1px; font-weight:700; padding-left:8px; color:var(--white); font-variant-numeric:tabular-nums; }
+  .kpi .val.pos { color:var(--green); } .kpi .val.neg { color:var(--saber-soft); text-shadow:var(--glow-soft); }
+  .kpi .foot { font-size:11px; color:var(--dimmer); margin-top:3px; padding-left:8px; }
+  .card { background:var(--panel); border:1px solid var(--edge); border-radius:8px; padding:22px; margin-bottom:22px; }
+  .card h2 { font-size:12px; text-transform:uppercase; letter-spacing:2px; margin:0 0 18px; display:flex; align-items:center; gap:12px; color:var(--white); font-weight:700; }
+  .card h2::after { content:""; flex:1; height:1px; background:linear-gradient(90deg,var(--saber),transparent); box-shadow:0 0 6px rgba(255,38,48,.4); }
   .row { display:grid; gap:12px; grid-template-columns:repeat(auto-fit,minmax(120px,1fr)); align-items:end; }
-  label { display:block; font-family:"Helvetica Neue",Arial,sans-serif; font-size:10px; text-transform:uppercase; letter-spacing:1.5px; color:var(--muted); margin-bottom:5px;}
-  input,select { width:100%; padding:9px 10px; border:1px solid var(--line); border-radius:3px; background:#fff; font-family:Georgia,serif; font-size:14px; color:var(--ink);}
-  input:focus,select:focus { outline:2px solid var(--brass-soft); border-color:var(--brass);}
-  .btn { font-family:"Helvetica Neue",Arial,sans-serif; cursor:pointer; background:var(--ink); color:var(--paper); border:none; padding:10px 20px; border-radius:3px; font-size:13px; letter-spacing:.5px;}
-  .btn:hover { background:var(--brass);}
-  table { width:100%; border-collapse:collapse; font-size:14px;}
-  th { font-family:"Helvetica Neue",Arial,sans-serif; font-size:10px; text-transform:uppercase; letter-spacing:1.5px; color:var(--muted); text-align:left; padding:8px 10px; border-bottom:1px solid var(--ink);}
-  td { padding:9px 10px; border-bottom:1px solid var(--line);}
-  tr:last-child td { border-bottom:none;}
-  td.num,th.num { text-align:right; font-variant-numeric:tabular-nums;}
-  .pos{color:var(--green);} .neg{color:var(--red);}
-  .pill { font-family:"Helvetica Neue",Arial,sans-serif; font-size:10px; letter-spacing:1px; text-transform:uppercase; padding:3px 8px; border-radius:20px;}
-  .pill.active{background:#e3efe5;color:var(--green);} .pill.cold{background:#f0e6e3;color:var(--red);} .pill.warm{background:#f5ecd6;color:var(--brass);}
-  .x { color:var(--muted); cursor:pointer; font-size:16px; line-height:1;} .x:hover{color:var(--red);}
-  .empty { color:var(--muted); font-style:italic; text-align:center; padding:24px;}
-  .month-pick { font-family:"Helvetica Neue",Arial,sans-serif; font-size:13px;}
-  .bars { display:flex; gap:6px; align-items:flex-end; height:120px; margin-top:8px;}
-  .bar { flex:1; background:var(--brass-soft); border-radius:3px 3px 0 0; position:relative; min-height:2px;}
-  .bar span { position:absolute; bottom:-20px; left:0; right:0; text-align:center; font-size:10px; color:var(--muted); font-family:"Helvetica Neue",Arial,sans-serif;}
-  .barwrap { padding-bottom:24px;}
-  .sync { font-size:12px; color:var(--muted); font-family:"Helvetica Neue",Arial,sans-serif; font-style:italic;}
+  label { display:block; font-size:10px; text-transform:uppercase; letter-spacing:1.5px; color:var(--dim); margin-bottom:6px; }
+  input,select { width:100%; padding:10px 11px; border:1px solid var(--edge); border-radius:6px; background:var(--bg2); font-family:inherit; font-size:14px; color:var(--white); }
+  input::placeholder { color:var(--dimmer); }
+  input:focus,select:focus { outline:none; border-color:var(--saber); box-shadow:var(--glow-soft); }
+  select option { background:var(--panel); color:var(--white); }
+  .btn { font-family:inherit; cursor:pointer; background:var(--saber); color:#fff; border:none; padding:11px 22px; border-radius:6px; font-size:12px; letter-spacing:1px; text-transform:uppercase; font-weight:700; box-shadow:var(--glow-soft); transition:box-shadow .15s,transform .05s; }
+  .btn:hover { box-shadow:var(--glow); } .btn:active { transform:translateY(1px); }
+  table { width:100%; border-collapse:collapse; font-size:14px; }
+  th { font-size:10px; text-transform:uppercase; letter-spacing:1.5px; color:var(--dim); text-align:left; padding:9px 10px; border-bottom:1px solid var(--saber); }
+  td { padding:11px 10px; border-bottom:1px solid var(--edge); color:var(--white); }
+  tr:last-child td { border-bottom:none; }
+  td.num,th.num { text-align:right; font-variant-numeric:tabular-nums; }
+  tbody tr:hover td { background:rgba(255,38,48,.04); }
+  .pos{color:var(--green);} .neg{color:var(--saber-soft);}
+  .pill { font-size:10px; letter-spacing:1px; text-transform:uppercase; padding:3px 9px; border-radius:20px; border:1px solid; font-weight:600; }
+  .pill.active{ color:var(--green); border-color:rgba(52,210,123,.4); background:rgba(52,210,123,.08);}
+  .pill.cold{ color:var(--saber-soft); border-color:rgba(255,38,48,.4); background:rgba(255,38,48,.08);}
+  .pill.warm{ color:var(--amber); border-color:rgba(255,178,62,.4); background:rgba(255,178,62,.08);}
+  .x { color:var(--dimmer); cursor:pointer; font-size:18px; line-height:1; } .x:hover{ color:var(--saber); text-shadow:var(--glow-soft); }
+  .empty { color:var(--dimmer); font-style:italic; text-align:center; padding:26px; }
+  .month-pick { font-size:13px; }
+  .bars { display:flex; gap:8px; align-items:flex-end; height:120px; margin-top:8px; }
+  .bar { flex:1; background:linear-gradient(to top,var(--saber),var(--saber-soft)); border-radius:3px 3px 0 0; position:relative; min-height:2px; box-shadow:0 0 8px rgba(255,38,48,.5); }
+  .bar span { position:absolute; bottom:-22px; left:0; right:0; text-align:center; font-size:10px; color:var(--dim); }
+  .barwrap { padding-bottom:26px; }
 </style>
 </head>
 <body>
 
-<!-- ===== LOGIN SCREEN ===== -->
 <div id="login" class="wrap">
   <div class="card">
-    <h1>The Producer's Ledger</h1>
-    <div class="sub">Sign in to your books</div>
+    <h1>The Producer's Ledger<span class="dot">.</span></h1>
+    <div class="tag">Sign in to your books</div>
     <input type="email" id="email" placeholder="Email" autocomplete="email">
     <input type="password" id="pw" placeholder="Password" autocomplete="current-password">
     <button class="btn" id="signinBtn" onclick="signIn()">Sign in</button>
@@ -92,15 +102,15 @@
   </div>
 </div>
 
-<!-- ===== APP ===== -->
 <div id="app" class="wrap" style="display:none;">
   <div class="masthead">
     <div>
-      <h1>The Producer's Ledger</h1>
-      <div class="sub">Lead Spend · Annual Premium · Time · Team</div>
+      <h1>The Producer's Ledger<span class="dot">.</span></h1>
+      <div class="tag">Lead Spend &middot; Annual Premium &middot; Time &middot; Team</div>
     </div>
-    <div class="acct"><b id="who">—</b><a onclick="signOut()">Sign out</a></div>
+    <div class="acct"><b id="who">&mdash;</b><a onclick="signOut()">Sign out</a></div>
   </div>
+  <hr class="saber-rule">
 
   <nav id="tabs">
     <button class="active" data-tab="dash">Dashboard</button>
@@ -117,14 +127,14 @@
     </div>
     <div class="kpis" id="kpis"></div>
     <div class="card"><h2>Cost Per Sale Trend</h2><div class="barwrap"><div class="bars" id="cpaBars"></div></div></div>
-    <div class="card"><h2>Return on Lead Spend (AP ÷ Spend)</h2><div class="barwrap"><div class="bars" id="roiBars"></div></div></div>
+    <div class="card"><h2>Return on Lead Spend (AP &divide; Spend)</h2><div class="barwrap"><div class="bars" id="roiBars"></div></div></div>
   </section>
 
   <section class="panel" id="leads">
     <div class="card"><h2>Log Lead Spend</h2>
       <div class="row">
         <div><label>Date</label><input type="date" id="l_date"></div>
-        <div><label>Source / Vendor</label><input id="l_src" placeholder="GOAT Leads, EverQuote…"></div>
+        <div><label>Source / Vendor</label><input id="l_src" placeholder="GOAT Leads, EverQuote..."></div>
         <div><label>Lead Type</label><select id="l_type"><option>Aged</option><option>Real-time</option><option>Mortgage Protection</option><option>Veteran</option><option>Final Expense</option><option>Referral</option><option>Other</option></select></div>
         <div><label>Qty</label><input type="number" id="l_qty" min="0" placeholder="50"></div>
         <div><label>Total Spend ($)</label><input type="number" id="l_cost" min="0" step="0.01" placeholder="250"></div>
@@ -142,7 +152,7 @@
         <div><label>Date</label><input type="date" id="a_date"></div>
         <div><label>Client</label><input id="a_client" placeholder="Last name"></div>
         <div><label>Carrier</label><select id="a_carrier"><option>Transamerica</option><option>Ethos</option><option>Americo</option><option>American Amicable</option><option>Other</option></select></div>
-        <div><label>Product</label><input id="a_product" placeholder="IUL, Term, FE…"></div>
+        <div><label>Product</label><input id="a_product" placeholder="IUL, Term, FE..."></div>
         <div><label>Annual Premium ($)</label><input type="number" id="a_ap" min="0" step="0.01" placeholder="1200"></div>
         <div><label>Status</label><select id="a_status"><option>Submitted</option><option>Approved</option><option>Issued</option><option>Pending</option><option>Declined</option></select></div>
         <div><button class="btn" onclick="addSale()">Add Sale</button></div>
@@ -189,7 +199,6 @@
 </div>
 
 <script>
-// ===== Supabase connection =====
 const SUPABASE_URL = "https://eblopzfcftsulhtvextj.supabase.co";
 const SUPABASE_KEY = "sb_publishable_-9zVR_nmKMvcGFv7CoDxkA_l_6ugGQX";
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
@@ -200,30 +209,25 @@ const ym = d => (d||"").slice(0,7);
 let curMonth = new Date().toISOString().slice(0,7);
 let leads=[], sales=[], days=[], team=[];
 
-// ===== AUTH =====
 function msg(t,cls){const m=$("authMsg");m.textContent=t;m.className=cls||"";}
 async function signUp(){
   const email=$("email").value.trim(), password=$("pw").value;
   if(!email||!password){msg("Enter an email and password.","err");return;}
-  msg("Creating your account…");
+  msg("Creating your account...");
   const {error}=await sb.auth.signUp({email,password});
   if(error){msg(error.message,"err");return;}
-  msg("Account created. Signing you in…","ok");
-  signIn();
+  msg("Account created. Signing you in...","ok"); signIn();
 }
 async function signIn(){
   const email=$("email").value.trim(), password=$("pw").value;
   if(!email||!password){msg("Enter an email and password.","err");return;}
-  msg("Signing in…");
+  msg("Signing in...");
   const {error}=await sb.auth.signInWithPassword({email,password});
   if(error){msg(error.message,"err");return;}
-  // session handled by listener
 }
 async function signOut(){ await sb.auth.signOut(); }
 
-sb.auth.onAuthStateChange((_e,session)=>{
-  if(session){ showApp(session.user); } else { showLogin(); }
-});
+sb.auth.onAuthStateChange((_e,session)=>{ if(session){ showApp(session.user); } else { showLogin(); } });
 function showLogin(){ $("login").style.display="block"; $("app").style.display="none"; }
 async function showApp(user){
   $("login").style.display="none"; $("app").style.display="block"; $("who").textContent=user.email;
@@ -233,7 +237,6 @@ async function showApp(user){
   await refresh();
 }
 
-// ===== DATA =====
 async function refresh(){
   const [L,S,D,T]=await Promise.all([
     sb.from("leads").select("*").order("date"),
@@ -248,12 +251,11 @@ async function insert(table,obj){ const {error}=await sb.from(table).insert(obj)
 async function remove(table,id){ const {error}=await sb.from(table).delete().eq("id",id); if(error)alert("Delete failed: "+error.message); await refresh(); }
 async function upsert(table,obj,id){ const {error}= id? await sb.from(table).update(obj).eq("id",id) : await sb.from(table).insert(obj); if(error)alert("Save failed: "+error.message); await refresh(); }
 
-// ===== ADD =====
 function addLead(){ if(!$("l_cost").value)return;
-  insert("leads",{date:$("l_date").value,src:$("l_src").value||"—",type:$("l_type").value,qty:+$("l_qty").value||0,cost:+$("l_cost").value||0});
+  insert("leads",{date:$("l_date").value,src:$("l_src").value||"-",type:$("l_type").value,qty:+$("l_qty").value||0,cost:+$("l_cost").value||0});
   $("l_src").value=$("l_qty").value=$("l_cost").value=""; }
 function addSale(){ if(!$("a_ap").value)return;
-  insert("sales",{date:$("a_date").value,client:$("a_client").value||"—",carrier:$("a_carrier").value,product:$("a_product").value||"—",ap:+$("a_ap").value||0,status:$("a_status").value});
+  insert("sales",{date:$("a_date").value,client:$("a_client").value||"-",carrier:$("a_carrier").value,product:$("a_product").value||"-",ap:+$("a_ap").value||0,status:$("a_status").value});
   $("a_client").value=$("a_product").value=$("a_ap").value=""; }
 function addDay(){ if(!$("t_hours").value)return;
   insert("work_days",{date:$("t_date").value,hours:+$("t_hours").value||0,dials:+$("t_dials").value||0,appts:+$("t_appts").value||0,notes:$("t_notes").value||""});
@@ -264,7 +266,6 @@ function addAgent(){ if(!$("d_name").value)return;
   upsert("downline",rec, ex?ex.id:null);
   $("d_name").value=$("d_ap").value=$("d_sales").value=""; }
 
-// ===== NAV =====
 $("tabs").addEventListener("click",e=>{
   if(e.target.tagName!=="BUTTON")return;
   document.querySelectorAll("nav button").forEach(b=>b.classList.remove("active"));
@@ -273,48 +274,42 @@ $("tabs").addEventListener("click",e=>{
 });
 $("monthSel").addEventListener("change",e=>{curMonth=e.target.value;renderAll();});
 
-// ===== RENDER =====
 function renderAll(){
   const mL=leads.filter(l=>ym(l.date)===curMonth), mS=sales.filter(s=>ym(s.date)===curMonth), mD=days.filter(d=>ym(d.date)===curMonth);
   const spend=mL.reduce((a,l)=>a+ +l.cost,0), leadQty=mL.reduce((a,l)=>a+ +l.qty,0);
   const ap=mS.reduce((a,s)=>a+ +s.ap,0), issued=mS.filter(s=>["Issued","Approved"].includes(s.status)).length;
   const hours=mD.reduce((a,d)=>a+ +d.hours,0), daysWorked=mD.length, dials=mD.reduce((a,d)=>a+ +d.dials,0);
   const cpa=mS.length?spend/mS.length:0, roi=spend?ap/spend:0;
-
   $("kpis").innerHTML = card("Lead Spend",money(spend),leadQty+" leads bought")
-    + card("Annual Premium",money(ap),mS.length+" sales · "+issued+" issued",ap>=spend?"pos":"")
-    + card("Cost / Sale",mS.length?money(cpa):"—","acquisition cost")
-    + card("Return on Spend",spend?roi.toFixed(2)+"×":"—","AP per $1 spent",roi>=1?"pos":(spend?"neg":""))
-    + card("Hours Worked",hours.toFixed(1),daysWorked+" days · "+(daysWorked?(hours/daysWorked).toFixed(1):0)+"/day avg")
+    + card("Annual Premium",money(ap),mS.length+" sales / "+issued+" issued",ap>=spend?"pos":"")
+    + card("Cost / Sale",mS.length?money(cpa):"-","acquisition cost")
+    + card("Return on Spend",spend?roi.toFixed(2)+"x":"-","AP per $1 spent",roi>=1?"pos":(spend?"neg":""))
+    + card("Hours Worked",hours.toFixed(1),daysWorked+" days / "+(daysWorked?(hours/daysWorked).toFixed(1):0)+"/day avg")
     + card("Dials",dials.toLocaleString(),"this month");
-
-  $("leadBody").innerHTML = mL.length? mL.slice().reverse().map(l=>`<tr><td>${fmt(l.date)}</td><td>${esc(l.src)}</td><td>${l.type}</td><td class="num">${l.qty}</td><td class="num">${money(l.cost)}</td><td class="num">${l.qty?money(l.cost/l.qty):"—"}</td><td><span class="x" onclick="remove('leads','${l.id}')">×</span></td></tr>`).join("") : emptyRow(7,"No lead spend logged for this month.");
-  $("saleBody").innerHTML = mS.length? mS.slice().reverse().map(s=>`<tr><td>${fmt(s.date)}</td><td>${esc(s.client)}</td><td>${s.carrier}</td><td>${esc(s.product)}</td><td class="num">${money(s.ap)}</td><td>${pill(s.status)}</td><td><span class="x" onclick="remove('sales','${s.id}')">×</span></td></tr>`).join("") : emptyRow(7,"No sales logged for this month.");
-  $("dayBody").innerHTML = mD.length? mD.slice().reverse().map(d=>`<tr><td>${fmt(d.date)}</td><td class="num">${d.hours}</td><td class="num">${d.dials}</td><td class="num">${d.appts}</td><td>${esc(d.notes)}</td><td><span class="x" onclick="remove('work_days','${d.id}')">×</span></td></tr>`).join("") : emptyRow(6,"No work days logged for this month.");
-
+  $("leadBody").innerHTML = mL.length? mL.slice().reverse().map(l=>`<tr><td>${fmt(l.date)}</td><td>${esc(l.src)}</td><td>${l.type}</td><td class="num">${l.qty}</td><td class="num">${money(l.cost)}</td><td class="num">${l.qty?money(l.cost/l.qty):"-"}</td><td><span class="x" onclick="remove('leads','${l.id}')">&times;</span></td></tr>`).join("") : emptyRow(7,"No lead spend logged for this month.");
+  $("saleBody").innerHTML = mS.length? mS.slice().reverse().map(s=>`<tr><td>${fmt(s.date)}</td><td>${esc(s.client)}</td><td>${s.carrier}</td><td>${esc(s.product)}</td><td class="num">${money(s.ap)}</td><td>${pill(s.status)}</td><td><span class="x" onclick="remove('sales','${s.id}')">&times;</span></td></tr>`).join("") : emptyRow(7,"No sales logged for this month.");
+  $("dayBody").innerHTML = mD.length? mD.slice().reverse().map(d=>`<tr><td>${fmt(d.date)}</td><td class="num">${d.hours}</td><td class="num">${d.dials}</td><td class="num">${d.appts}</td><td>${esc(d.notes)}</td><td><span class="x" onclick="remove('work_days','${d.id}')">&times;</span></td></tr>`).join("") : emptyRow(6,"No work days logged for this month.");
   const tAP=team.reduce((a,t)=>a+ +t.ap,0), tSales=team.reduce((a,t)=>a+ +t.sales,0), activeN=team.filter(t=>t.status==="Active").length;
-  $("teamKpis").innerHTML = card("Team Size",team.length,activeN+" active")+card("Team AP (mo)",money(tAP),"downline production")+card("Team Sales",tSales,"this month")+card("Avg AP / Agent",team.length?money(tAP/team.length):"—","");
-  $("teamBody").innerHTML = team.length? team.map(t=>`<tr><td>${esc(t.name)}</td><td>${t.tier}</td><td>${pill(t.status)}</td><td class="num">${money(t.ap)}</td><td class="num">${t.sales}</td><td>${t.contact?fmt(t.contact):"—"}</td><td><span class="x" onclick="remove('downline','${t.id}')">×</span></td></tr>`).join("") : emptyRow(7,"No downline agents yet. Add your first recruit above.");
-
+  $("teamKpis").innerHTML = card("Team Size",team.length,activeN+" active")+card("Team AP (mo)",money(tAP),"downline production")+card("Team Sales",tSales,"this month")+card("Avg AP / Agent",team.length?money(tAP/team.length):"-","");
+  $("teamBody").innerHTML = team.length? team.map(t=>`<tr><td>${esc(t.name)}</td><td>${t.tier}</td><td>${pill(t.status)}</td><td class="num">${money(t.ap)}</td><td class="num">${t.sales}</td><td>${t.contact?fmt(t.contact):"-"}</td><td><span class="x" onclick="remove('downline','${t.id}')">&times;</span></td></tr>`).join("") : emptyRow(7,"No downline agents yet. Add your first recruit above.");
   renderBars();
 }
 function renderBars(){
   const months=[]; for(let i=5;i>=0;i--){const d=new Date(curMonth+"-02");d.setMonth(d.getMonth()-i);months.push(d.toISOString().slice(0,7));}
   const cpaData=months.map(m=>{const sp=leads.filter(l=>ym(l.date)===m).reduce((a,l)=>a+ +l.cost,0);const n=sales.filter(s=>ym(s.date)===m).length;return n?sp/n:0;});
   const roiData=months.map(m=>{const sp=leads.filter(l=>ym(l.date)===m).reduce((a,l)=>a+ +l.cost,0);const apm=sales.filter(s=>ym(s.date)===m).reduce((a,s)=>a+ +s.ap,0);return sp?apm/sp:0;});
-  drawBars("cpaBars",months,cpaData,v=>v?money(v):"—"); drawBars("roiBars",months,roiData,v=>v?v.toFixed(1)+"×":"—");
+  drawBars("cpaBars",months,cpaData,v=>v?money(v):"-"); drawBars("roiBars",months,roiData,v=>v?v.toFixed(1)+"x":"-");
 }
 function drawBars(id,months,data,fmtFn){
   const max=Math.max(...data,0.0001);
   $(id).innerHTML=months.map((m,i)=>{const h=Math.round((data[i]/max)*100);const lbl=new Date(m+"-02").toLocaleDateString(undefined,{month:"short"});return `<div class="bar" style="height:${data[i]?Math.max(h,3):2}%" title="${fmtFn(data[i])}"><span>${lbl}<br>${fmtFn(data[i])}</span></div>`;}).join("");
 }
-function card(label,val,foot,cls=""){return `<div class="kpi"><div class="label">${label}</div><div class="val ${cls}">${val}</div><div class="foot">${foot||""}</div></div>`;}
+function card(label,val,foot,cls){return `<div class="kpi"><div class="label">${label}</div><div class="val ${cls||""}">${val}</div><div class="foot">${foot||""}</div></div>`;}
 function pill(s){const m={Active:"active",Issued:"active",Approved:"active",Warming:"warm",Pending:"warm",Submitted:"warm",Inactive:"cold",Declined:"cold"};return `<span class="pill ${m[s]||"warm"}">${s}</span>`;}
 function emptyRow(c,msg){return `<tr><td colspan="${c}" class="empty">${msg}</td></tr>`;}
-function fmt(d){return d?new Date(d+"T00:00").toLocaleDateString(undefined,{month:"short",day:"numeric"}):"—";}
+function fmt(d){return d?new Date(d+"T00:00").toLocaleDateString(undefined,{month:"short",day:"numeric"}):"-";}
 function esc(s){return (s||"").toString().replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));}
 
-// boot
 sb.auth.getSession().then(({data})=>{ if(data.session) showApp(data.session.user); else showLogin(); });
 </script>
 </body>
