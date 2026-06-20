@@ -95,83 +95,117 @@
   .bar { flex:1; background:linear-gradient(to top,var(--saber),var(--saber-soft)); border-radius:3px 3px 0 0; position:relative; min-height:2px; box-shadow:0 0 8px rgba(255,38,48,.5); }
   .bar span { position:absolute; bottom:-22px; left:0; right:0; text-align:center; font-size:10px; color:var(--dim); }
   .barwrap { padding-bottom:26px; }
-  /* ===== Full-screen intro: four aces sweep in, chip spins in front, then clear ===== */
+  /* ===== Cinematic intro: aces deal, chip spins, camera zooms INTO the chip ===== */
   #intro {
-    position:fixed; inset:0; z-index:9999; background:var(--bg);
+    position:fixed; inset:0; z-index:9999; overflow:hidden;
+    background:radial-gradient(circle at 50% 42%, #1a0406 0, #0a0a0c 60%);
     display:flex; align-items:center; justify-content:center;
-    background-image: radial-gradient(circle at 50% 40%, rgba(255,38,48,.14) 0, transparent 55%);
-    animation:introOut .6s ease 3.1s forwards;
+    animation:introOut .5s ease 3.3s forwards;
+  }
+  /* white flash that blooms as we punch into the chip */
+  #intro::after {
+    content:""; position:absolute; inset:0; background:#fff; opacity:0; pointer-events:none;
+    animation:flash 1.2s ease-in 2.55s forwards;
+  }
+  @keyframes flash { 0%{opacity:0;} 75%{opacity:.92;} 100%{opacity:0;} }
+  /* the stage holds aces + chip and is what the camera zooms */
+  #intro .stage {
+    position:relative; display:flex; align-items:center; justify-content:center;
+    transform-origin:50% 50%;
+    animation:zoomIn 1.25s cubic-bezier(.6,0,.85,.3) 2.35s forwards;
+  }
+  @keyframes zoomIn {
+    0%   { transform:scale(1); }
+    100% { transform:scale(34); }   /* punch straight into the chip face */
   }
   #intro .introaces { display:flex; align-items:center; justify-content:center; gap:clamp(12px,3.4vw,40px); }
   #intro .ace {
-    width:clamp(100px,19vw,185px); aspect-ratio:5/7; border-radius:13px;
-    background:#f7f7fa; color:#14110f; position:relative;
-    box-shadow:0 16px 46px rgba(0,0,0,.6); border:1px solid #d8d8e0;
+    width:clamp(104px,19vw,190px); aspect-ratio:5/7;
     opacity:0; transform:translateY(60px) rotate(0deg) scale(.85);
     animation:aceDeal .7s cubic-bezier(.2,1.2,.4,1) forwards;
+    filter:drop-shadow(0 18px 40px rgba(0,0,0,.6));
   }
-  #intro .ace .corner { position:absolute; font-weight:800; font-size:clamp(18px,3.6vw,32px); line-height:1; }
-  #intro .ace .tl { top:11px; left:13px; }
-  #intro .ace .br { bottom:11px; right:13px; transform:rotate(180deg); }
-  #intro .ace .pip { position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); font-size:clamp(42px,9.5vw,84px); }
-  #intro .red { color:var(--saber); }
-  #intro .ace:nth-child(1){ animation-delay:.05s; --r:-8deg; }
-  #intro .ace:nth-child(2){ animation-delay:.20s; --r:-3deg; }
-  #intro .ace:nth-child(3){ animation-delay:.35s; --r:3deg; }
-  #intro .ace:nth-child(4){ animation-delay:.50s; --r:8deg; }
+  #intro .ace svg { width:100%; height:100%; display:block; }
+  #intro .red { color:#d11a23; }
+  #intro .ace:nth-child(1){ animation-delay:.05s; --r:-9deg; }
+  #intro .ace:nth-child(2){ animation-delay:.18s; --r:-3deg; }
+  #intro .ace:nth-child(3){ animation-delay:.31s; --r:3deg; }
+  #intro .ace:nth-child(4){ animation-delay:.44s; --r:9deg; }
   @keyframes aceDeal {
-    0%   { opacity:0; transform:translateY(70px) rotate(0deg) scale(.8); }
+    0%   { opacity:0; transform:translateY(72px) rotate(0deg) scale(.8); }
     70%  { opacity:1; }
     100% { opacity:1; transform:translateY(0) rotate(var(--r)) scale(1); }
   }
-  /* spinning chip layered in front of the aces */
+  /* realistic chip SVG: spins, then we zoom into it */
   #intro .chip {
-    position:absolute; width:clamp(115px,18vw,165px); height:clamp(115px,18vw,165px);
-    transform-style:preserve-3d; z-index:2;
-    filter:drop-shadow(0 0 18px rgba(255,38,48,.6));
-    animation:chipFlip 2.4s cubic-bezier(.45,.05,.3,1) .5s both;
+    position:absolute; width:clamp(124px,18vw,176px); height:clamp(124px,18vw,176px);
+    z-index:2;
+    filter:drop-shadow(0 12px 24px rgba(0,0,0,.6)) drop-shadow(0 0 18px rgba(255,38,48,.5));
+    animation:chipFlip 2.1s cubic-bezier(.4,.05,.25,1) .45s both;
   }
+  #intro .chip-svg { width:100%; height:100%; display:block; }
   @keyframes chipFlip {
-    0%   { transform:rotateY(0deg) scale(.5); opacity:0; }
+    0%   { transform:rotateY(0deg) scale(.45); opacity:0; }
     15%  { opacity:1; }
-    60%  { transform:rotateY(1080deg) scale(1.12); }
-    75%  { transform:rotateY(1080deg) scale(.98); }
-    100% { transform:rotateY(1080deg) scale(1); opacity:1; }
-  }
-  #intro .chip-face {
-    position:absolute; inset:0; border-radius:50%; backface-visibility:hidden;
-    display:flex; align-items:center; justify-content:center;
-    background:repeating-conic-gradient(from 0deg, var(--saber) 0deg 18deg, #c01620 18deg 36deg);
-    border:4px solid #f7f7fa;
-    box-shadow:inset 0 0 0 5px var(--saber), inset 0 0 0 9px #f7f7fa;
-  }
-  #intro .chip-back { transform:rotateY(180deg); }
-  #intro .chip-mark {
-    width:58%; height:58%; border-radius:50%; background:#0a0a0c;
-    display:flex; align-items:center; justify-content:center;
-    color:#f7f7fa; font-weight:800; font-size:clamp(18px,4vw,26px); border:2px solid #f7f7fa;
+    70%  { transform:rotateY(1440deg) scale(1.1); }
+    85%  { transform:rotateY(1440deg) scale(.97); }
+    100% { transform:rotateY(1440deg) scale(1); opacity:1; }
   }
   @keyframes introOut { to { opacity:0; visibility:hidden; } }
   #intro.skip { display:none; }
   @media (prefers-reduced-motion: reduce) {
-    #intro { animation:introOut .3s ease .4s forwards; }
+    #intro { animation:introOut .3s ease .5s forwards; }
+    #intro::after, #intro .stage { animation:none; }
     #intro .ace { animation:none; opacity:1; transform:none; }
-    #intro .chip { animation:none; transform:rotateY(1080deg); opacity:1; }
+    #intro .chip { animation:none; transform:rotateY(1440deg); opacity:1; }
   }
 </style>
 </head>
 <body>
 
 <div id="intro">
-  <div class="introaces">
-    <div class="ace"><span class="corner tl">A&spades;</span><span class="pip">&spades;</span><span class="corner br">A&spades;</span></div>
-    <div class="ace"><span class="corner tl red">A&hearts;</span><span class="pip red">&hearts;</span><span class="corner br red">A&hearts;</span></div>
-    <div class="ace"><span class="corner tl">A&clubs;</span><span class="pip">&clubs;</span><span class="corner br">A&clubs;</span></div>
-    <div class="ace"><span class="corner tl red">A&diams;</span><span class="pip red">&diams;</span><span class="corner br red">A&diams;</span></div>
-  </div>
-  <div class="chip">
-    <div class="chip-face chip-front"><span class="chip-mark">A&spades;</span></div>
-    <div class="chip-face chip-back"><span class="chip-mark">&spades;</span></div>
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+    <linearGradient id="cardFace" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffffff"/><stop offset="0.55" stop-color="#f4f5f8"/><stop offset="1" stop-color="#e6e8ef"/>
+    </linearGradient>
+    <linearGradient id="cardGloss" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.8"/><stop offset="0.4" stop-color="#ffffff" stop-opacity="0"/>
+    </linearGradient>
+    <radialGradient id="chipBody" cx="0.5" cy="0.38" r="0.75">
+      <stop offset="0" stop-color="#ff464f"/><stop offset="0.55" stop-color="#e21f29"/><stop offset="1" stop-color="#a50f17"/>
+    </radialGradient>
+    <linearGradient id="chipGloss" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.5"/><stop offset="0.45" stop-color="#ffffff" stop-opacity="0"/>
+      <stop offset="1" stop-color="#000000" stop-opacity="0.35"/>
+    </linearGradient>
+    <radialGradient id="chipCenter" cx="0.5" cy="0.4" r="0.6">
+      <stop offset="0" stop-color="#202028"/><stop offset="1" stop-color="#08080a"/>
+    </radialGradient>
+    <g id="spade"><path d="M16 3 C16 3 5 12 5 19 a6 6 0 0 0 9.5 4.8 C13.5 27 12 28.5 10.5 29.5 L21.5 29.5 C20 28.5 18.5 27 17.5 23.8 A6 6 0 0 0 27 19 C27 12 16 3 16 3 Z"/></g>
+    <g id="heart"><path d="M16 28 C16 28 4 20 4 11.5 A6.5 6.5 0 0 1 16 8 A6.5 6.5 0 0 1 28 11.5 C28 20 16 28 16 28 Z"/></g>
+    <g id="diamond"><path d="M16 3 L28 16 L16 29 L4 16 Z"/></g>
+    <g id="club"><path d="M16 4 a5.2 5.2 0 0 1 4.4 8 a5.2 5.2 0 1 1 -3 9 C17.5 24 18.5 27 20.5 29.5 L11.5 29.5 C13.5 27 14.5 24 14.6 21 a5.2 5.2 0 1 1 -3 -9 A5.2 5.2 0 0 1 16 4 Z"/></g>
+  </defs></svg>
+
+  <div class="stage">
+    <div class="introaces">
+      <div class="ace" data-suit="spade"></div>
+      <div class="ace red" data-suit="heart"></div>
+      <div class="ace" data-suit="club"></div>
+      <div class="ace red" data-suit="diamond"></div>
+    </div>
+    <div class="chip">
+      <svg class="chip-svg" viewBox="0 0 200 200" aria-hidden="true">
+        <circle cx="100" cy="100" r="98" fill="#7a0a10"/>
+        <circle cx="100" cy="100" r="96" fill="url(#chipBody)"/>
+        <g class="chip-spots" fill="#f7f7fa"></g>
+        <circle cx="100" cy="100" r="78" fill="none" stroke="#f7f7fa" stroke-width="7"/>
+        <circle cx="100" cy="100" r="62" fill="url(#chipBody)" stroke="#f7f7fa" stroke-width="3"/>
+        <circle cx="100" cy="100" r="40" fill="url(#chipCenter)" stroke="#f7f7fa" stroke-width="2.5"/>
+        <use href="#spade" x="84" y="82" width="32" height="32" fill="#f7f7fa"/>
+        <circle cx="100" cy="100" r="96" fill="url(#chipGloss)"/>
+      </svg>
+    </div>
   </div>
 </div>
 
@@ -572,7 +606,45 @@ function esc(s){return (s||"").toString().replace(/[&<>"]/g,c=>({"&":"&amp;","<"
 sb.auth.getSession().then(({data})=>{ if(data.session) showApp(data.session.user); else showLogin(); });
 
 // Remove the intro overlay from the DOM after it plays so it never blocks clicks.
-setTimeout(()=>{ const i=document.getElementById("intro"); if(i) i.remove(); }, 4000);
+// ===== Build realistic ace cards + chip spots for the intro =====
+(function buildIntro(){
+  const sym={spade:"#spade",heart:"#heart",club:"#club",diamond:"#diamond"};
+  document.querySelectorAll("#intro .ace").forEach(card=>{
+    const suit=card.dataset.suit, ref=sym[suit];
+    const isRed=(suit==="heart"||suit==="diamond");
+    const col=isRed?"#d11a23":"#16161c";
+    // viewBox 100x140 (5:7). Corners top-left & bottom-right, big center pip + decorative ring.
+    card.innerHTML=`<svg viewBox="0 0 100 140">
+      <rect x="1.5" y="1.5" width="97" height="137" rx="11" fill="url(#cardFace)" stroke="#cfd3dd" stroke-width="1.2"/>
+      <rect x="6" y="6" width="88" height="128" rx="8" fill="none" stroke="rgba(20,17,15,.10)" stroke-width="1"/>
+      <!-- top-left index -->
+      <text x="12" y="24" font-family="Georgia,serif" font-weight="700" font-size="19" fill="${col}">A</text>
+      <use href="${ref}" x="9" y="26" width="13" height="13" fill="${col}"/>
+      <!-- bottom-right index (rotated) -->
+      <g transform="rotate(180 88 116)">
+        <text x="80" y="118" font-family="Georgia,serif" font-weight="700" font-size="19" fill="${col}">A</text>
+        <use href="${ref}" x="77" y="120" width="13" height="13" fill="${col}"/>
+      </g>
+      <!-- decorative center medallion -->
+      <circle cx="50" cy="70" r="30" fill="none" stroke="${col}" stroke-opacity="0.18" stroke-width="1.5"/>
+      <use href="${ref}" x="29" y="49" width="42" height="42" fill="${col}"/>
+      <rect x="2.5" y="2.5" width="95" height="135" rx="10" fill="url(#cardGloss)"/>
+    </svg>`;
+  });
+  // chip edge spots: 6 white rounded segments around the rim
+  const spots=document.querySelector("#intro .chip-spots");
+  if(spots){
+    let s="";
+    for(let i=0;i<6;i++){
+      const a=(i*60)*Math.PI/180;
+      const x=100+Math.cos(a)*88, y=100+Math.sin(a)*88;
+      s+=`<rect x="${(x-11).toFixed(1)}" y="${(y-7).toFixed(1)}" width="22" height="14" rx="6" transform="rotate(${i*60} ${x.toFixed(1)} ${y.toFixed(1)})"/>`;
+    }
+    spots.innerHTML=s;
+  }
+})();
+
+setTimeout(()=>{ const i=document.getElementById("intro"); if(i) i.remove(); }, 4200);
 </script>
 </body>
 </html>
