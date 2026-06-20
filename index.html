@@ -80,6 +80,8 @@
   .pill.cold{ color:var(--saber-soft); border-color:rgba(255,38,48,.4); background:rgba(255,38,48,.08);}
   .pill.warm{ color:var(--amber); border-color:rgba(255,178,62,.4); background:rgba(255,178,62,.08);}
   .x { color:var(--dimmer); cursor:pointer; font-size:18px; line-height:1; } .x:hover{ color:var(--saber); text-shadow:var(--glow-soft); }
+  .x.edit:hover { color:var(--amber); } .x.save { color:var(--green); } .x.save:hover { color:var(--green); text-shadow:0 0 8px rgba(52,210,123,.6); }
+  td input, td select { padding:6px 7px; font-size:13px; }
   .empty { color:var(--dimmer); font-style:italic; text-align:center; padding:26px; }
   .month-pick { font-size:13px; }
   .seg { display:inline-flex; border:1px solid var(--edge); border-radius:7px; overflow:hidden; background:var(--bg2); }
@@ -456,6 +458,26 @@ async function insert(table,obj){ const {error}=await sb.from(table).insert(obj)
 async function remove(table,id){ const {error}=await sb.from(table).delete().eq("id",id); if(error)alert("Delete failed: "+error.message); await refresh(); }
 async function upsert(table,obj,id){ const {error}= id? await sb.from(table).update(obj).eq("id",id) : await sb.from(table).insert(obj); if(error)alert("Save failed: "+error.message); await refresh(); }
 
+// ===== Inline editing =====
+let editing={table:null,id:null};
+function startEdit(table,id){ editing={table,id}; renderAll(); }
+function cancelEdit(){ editing={table:null,id:null}; renderAll(); }
+async function saveEdit(table,id){
+  let obj={};
+  if(table==="leads"){ obj={date:gv("e_date"),src:gv("e_src")||"-",type:gv("e_type"),qty:+gv("e_qty")||0,cost:+gv("e_cost")||0}; }
+  else if(table==="sales"){ obj={date:gv("e_date"),client:gv("e_client")||"-",carrier:gv("e_carrier"),product:gv("e_product")||"-",ap:+gv("e_ap")||0,status:gv("e_status")}; }
+  else if(table==="work_days"){ obj={date:gv("e_date"),hours:+gv("e_hours")||0,dials:+gv("e_dials")||0,appts:+gv("e_appts")||0,notes:gv("e_notes")||""}; }
+  else if(table==="downline"){ obj={name:gv("e_name")||"-",tier:gv("e_tier"),status:gv("e_status"),ap:+gv("e_ap")||0,sales:+gv("e_sales")||0,contact:gv("e_contact")||null}; }
+  const {error}=await sb.from(table).update(obj).eq("id",id);
+  if(error){alert("Save failed: "+error.message);return;}
+  editing={table:null,id:null}; await refresh();
+}
+function gv(id){ const el=document.getElementById(id); return el?el.value:""; }
+function isEditing(table,id){ return editing.table===table && editing.id===id; }
+function editBtns(table,id){ return `<span class="x edit" onclick="startEdit('${table}','${id}')" title="Edit">&#9998;</span> <span class="x" onclick="remove('${table}','${id}')" title="Delete">&times;</span>`; }
+function saveBtns(table,id){ return `<span class="x save" onclick="saveEdit('${table}','${id}')" title="Save">&#10003;</span> <span class="x" onclick="cancelEdit()" title="Cancel">&times;</span>`; }
+function opts(list,sel){ return list.map(o=>`<option${o===sel?" selected":""}>${o}</option>`).join(""); }
+
 function addLead(){ if(!$("l_cost").value)return;
   insert("leads",{date:$("l_date").value,src:$("l_src").value||"-",type:$("l_type").value,qty:+$("l_qty").value||0,cost:+$("l_cost").value||0});
   $("l_src").value=$("l_qty").value=$("l_cost").value=""; }
@@ -498,9 +520,15 @@ function renderAll(){
     + card("Return on Spend",spend?roi.toFixed(2)+"x":"-","AP per $1 spent",roi>=1?"pos":(spend?"neg":""))
     + card("Hours Worked",hours.toFixed(1),daysWorked+" days / "+(daysWorked?(hours/daysWorked).toFixed(1):0)+"/day avg")
     + card("Dials",dials.toLocaleString(),scopeWord);
-  $("leadBody").innerHTML = mL.length? mL.slice().reverse().map(l=>`<tr><td>${fmt(l.date)}</td><td>${esc(l.src)}</td><td>${l.type}</td><td class="num">${l.qty}</td><td class="num">${money(l.cost)}</td><td class="num">${l.qty?money(l.cost/l.qty):"-"}</td><td><span class="x" onclick="remove('leads','${l.id}')">&times;</span></td></tr>`).join("") : emptyRow(7,"No lead spend logged for "+scopeWord+".");
-  $("saleBody").innerHTML = mS.length? mS.slice().reverse().map(s=>`<tr><td>${fmt(s.date)}</td><td>${esc(s.client)}</td><td>${s.carrier}</td><td>${esc(s.product)}</td><td class="num">${money(s.ap)}</td><td>${pill(s.status)}</td><td><span class="x" onclick="remove('sales','${s.id}')">&times;</span></td></tr>`).join("") : emptyRow(7,"No sales logged for "+scopeWord+".");
-  $("dayBody").innerHTML = mD.length? mD.slice().reverse().map(d=>`<tr><td>${fmt(d.date)}</td><td class="num">${d.hours}</td><td class="num">${d.dials}</td><td class="num">${d.appts}</td><td>${esc(d.notes)}</td><td><span class="x" onclick="remove('work_days','${d.id}')">&times;</span></td></tr>`).join("") : emptyRow(6,"No work days logged for "+scopeWord+".");
+  $("leadBody").innerHTML = mL.length? mL.slice().reverse().map(l=> isEditing("leads",l.id)
+    ? `<tr><td><input type="date" id="e_date" value="${l.date||""}"></td><td><input id="e_src" value="${esc(l.src)}"></td><td><select id="e_type">${opts(["Aged","Real-time","Mortgage Protection","Veteran","Final Expense","Referral","Other"],l.type)}</select></td><td><input type="number" id="e_qty" value="${l.qty}"></td><td><input type="number" id="e_cost" step="0.01" value="${l.cost}"></td><td class="num">-</td><td>${saveBtns("leads",l.id)}</td></tr>`
+    : `<tr><td>${fmt(l.date)}</td><td>${esc(l.src)}</td><td>${l.type}</td><td class="num">${l.qty}</td><td class="num">${money(l.cost)}</td><td class="num">${l.qty?money(l.cost/l.qty):"-"}</td><td>${editBtns("leads",l.id)}</td></tr>`).join("") : emptyRow(7,"No lead spend logged for "+scopeWord+".");
+  $("saleBody").innerHTML = mS.length? mS.slice().reverse().map(s=> isEditing("sales",s.id)
+    ? `<tr><td><input type="date" id="e_date" value="${s.date||""}"></td><td><input id="e_client" value="${esc(s.client)}"></td><td><select id="e_carrier">${opts(["Aetna","Corebridge","Transamerica","Ethos","Mutual of Omaha","Americo","American Amicable","Other"],s.carrier)}</select></td><td><input id="e_product" value="${esc(s.product)}"></td><td><input type="number" id="e_ap" step="0.01" value="${s.ap}"></td><td><select id="e_status">${opts(["Submitted","Approved","Issued","Pending","Declined"],s.status)}</select></td><td>${saveBtns("sales",s.id)}</td></tr>`
+    : `<tr><td>${fmt(s.date)}</td><td>${esc(s.client)}</td><td>${s.carrier}</td><td>${esc(s.product)}</td><td class="num">${money(s.ap)}</td><td>${pill(s.status)}</td><td>${editBtns("sales",s.id)}</td></tr>`).join("") : emptyRow(7,"No sales logged for "+scopeWord+".");
+  $("dayBody").innerHTML = mD.length? mD.slice().reverse().map(d=> isEditing("work_days",d.id)
+    ? `<tr><td><input type="date" id="e_date" value="${d.date||""}"></td><td><input type="number" id="e_hours" step="0.25" value="${d.hours}"></td><td><input type="number" id="e_dials" value="${d.dials}"></td><td><input type="number" id="e_appts" value="${d.appts}"></td><td><input id="e_notes" value="${esc(d.notes)}"></td><td>${saveBtns("work_days",d.id)}</td></tr>`
+    : `<tr><td>${fmt(d.date)}</td><td class="num">${d.hours}</td><td class="num">${d.dials}</td><td class="num">${d.appts}</td><td>${esc(d.notes)}</td><td>${editBtns("work_days",d.id)}</td></tr>`).join("") : emptyRow(6,"No work days logged for "+scopeWord+".");
   const linkAP=linkedAgents.reduce((a,t)=>a+ +t.ap,0), linkSales=linkedAgents.reduce((a,t)=>a+ +t.sales,0);
   const manAP=team.reduce((a,t)=>a+ +t.ap,0), manSales=team.reduce((a,t)=>a+ +t.sales,0);
   const tAP=linkAP+manAP, tSales=linkSales+manSales;
@@ -510,7 +538,9 @@ function renderAll(){
     + card("Team Sales",tSales,"this month")
     + card("Avg AP / Agent",totalAgents?money(tAP/totalAgents):"-","");
   $("linkedBody").innerHTML = linkedAgents.length? linkedAgents.map(a=>`<tr><td>${esc(a.full_name||a.email.split("@")[0])}</td><td>${esc(a.email)}</td><td class="num">${money(a.ap)}</td><td class="num">${a.sales}</td><td>${a.joined?fmt(a.joined.slice(0,10)):"-"}</td></tr>`).join("") : emptyRow(5,"No linked agents yet. Generate a link above and send it to a recruit.");
-  $("teamBody").innerHTML = team.length? team.map(t=>`<tr><td>${esc(t.name)}</td><td>${t.tier}</td><td>${pill(t.status)}</td><td class="num">${money(t.ap)}</td><td class="num">${t.sales}</td><td>${t.contact?fmt(t.contact):"-"}</td><td><span class="x" onclick="remove('downline','${t.id}')">&times;</span></td></tr>`).join("") : emptyRow(7,"No manual agents. Add one above to track a recruit by hand.");
+  $("teamBody").innerHTML = team.length? team.map(t=> isEditing("downline",t.id)
+    ? `<tr><td><input id="e_name" value="${esc(t.name)}"></td><td><select id="e_tier">${opts(["Personal Recruit","Level 2","Level 3+"],t.tier)}</select></td><td><select id="e_status">${opts(["Active","Warming","Inactive"],t.status)}</select></td><td><input type="number" id="e_ap" value="${t.ap}"></td><td><input type="number" id="e_sales" value="${t.sales}"></td><td><input type="date" id="e_contact" value="${t.contact||""}"></td><td>${saveBtns("downline",t.id)}</td></tr>`
+    : `<tr><td>${esc(t.name)}</td><td>${t.tier}</td><td>${pill(t.status)}</td><td class="num">${money(t.ap)}</td><td class="num">${t.sales}</td><td>${t.contact?fmt(t.contact):"-"}</td><td>${editBtns("downline",t.id)}</td></tr>`).join("") : emptyRow(7,"No manual agents. Add one above to track a recruit by hand.");
   renderBars();
 }
 // trend bars: 6 buckets of the current scope (6 days / 6 weeks / 6 months), ending at refDate's period
