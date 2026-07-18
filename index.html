@@ -95,6 +95,12 @@
   .bar { flex:1; background:linear-gradient(to top,var(--saber),var(--saber-soft)); border-radius:3px 3px 0 0; position:relative; min-height:2px; box-shadow:0 0 8px rgba(255,38,48,.5); }
   .bar span { position:absolute; bottom:-22px; left:0; right:0; text-align:center; font-size:10px; color:var(--dim); }
   .barwrap { padding-bottom:26px; }
+  .funnel-row { display:flex; align-items:center; gap:14px; margin:10px 0; }
+  .funnel-label { width:120px; font-size:11px; text-transform:uppercase; letter-spacing:1px; color:var(--dim); flex-shrink:0; }
+  .funnel-track { flex:1; height:34px; background:var(--bg2); border-radius:6px; overflow:hidden; border:1px solid var(--edge); }
+  .funnel-fill { height:100%; background:linear-gradient(90deg,var(--saber),var(--saber-soft)); border-radius:6px 0 0 6px; display:flex; align-items:center; justify-content:flex-end; padding-right:10px; color:#fff; font-weight:700; font-size:13px; box-shadow:0 0 12px rgba(255,38,48,.4); min-width:34px; transition:width .4s; }
+  .funnel-rate { width:96px; text-align:right; font-size:12px; color:var(--dim); flex-shrink:0; }
+  .funnel-rate b { color:var(--white); }
   /* ===== Cinematic intro: aces deal, chip spins, camera zooms INTO the chip ===== */
   #intro {
     position:fixed; inset:0; z-index:9999; overflow:hidden;
@@ -236,6 +242,7 @@
     <button data-tab="leads">Lead Spend</button>
     <button data-tab="ap">AP &amp; Sales</button>
     <button data-tab="time">Hours &amp; Days</button>
+    <button data-tab="activity">Activity</button>
     <button data-tab="team">Downline</button>
   </nav>
 
@@ -307,6 +314,26 @@
     </div>
   </section>
 
+  <section class="panel" id="activity">
+    <div class="card"><h2>Log Activity</h2>
+      <div class="row">
+        <div><label>Date</label><input type="date" id="ac_date"></div>
+        <div><label>Dials</label><input type="number" id="ac_dials" min="0" placeholder="120"></div>
+        <div><label>Pickups</label><input type="number" id="ac_pickups" min="0" placeholder="30"></div>
+        <div><label>Presentations</label><input type="number" id="ac_pres" min="0" placeholder="8"></div>
+        <div><label>Sales</label><input type="number" id="ac_sales" min="0" placeholder="2"></div>
+        <div><button class="btn" onclick="addActivity()">Add Entry</button></div>
+      </div>
+    </div>
+    <div class="kpis" id="funnelKpis"></div>
+    <div class="card"><h2>Your Funnel <span style="font-weight:400;color:var(--dim);text-transform:none;letter-spacing:0;font-size:11px;">(conversion at each stage)</span></h2>
+      <div id="funnelBars"></div>
+    </div>
+    <div class="card"><h2>Activity Log</h2>
+      <table><thead><tr><th>Date</th><th class="num">Dials</th><th class="num">Pickups</th><th class="num">Presentations</th><th class="num">Sales</th><th></th></tr></thead><tbody id="actBody"></tbody></table>
+    </div>
+  </section>
+
   <section class="panel" id="team">
     <div class="card"><h2>Invite an Agent</h2>
       <p style="color:var(--dim);font-size:13px;margin:0 0 14px;line-height:1.5;">Generate a signup link and send it to a recruit. When they create an account through it, they're linked to you and their monthly AP &amp; sale count appear below automatically. Their client details stay private to them.</p>
@@ -349,7 +376,7 @@ const ym = d => (d||"").slice(0,7);
 let scope = "month";              // "day" | "week" | "month"
 let refDate = new Date();         // reference date anchoring the current period
 const ymd = d => d.toISOString().slice(0,10);
-let leads=[], sales=[], days=[], team=[];
+let leads=[], sales=[], days=[], team=[], activity=[];
 let myUid=null, linkedAgents=[];   // linkedAgents: [{id,email,full_name,ap,sales,joined}]
 
 // ---- period boundaries ----
@@ -416,7 +443,7 @@ async function showApp(user){
   $("login").style.display="none"; $("app").style.display="block"; $("who").textContent=user.email;
   $("refDate").value=ymd(refDate);
   const today=new Date().toISOString().slice(0,10);
-  ["l_date","a_date","t_date","d_contact"].forEach(i=>$(i).value=today);
+  ["l_date","a_date","t_date","d_contact","ac_date"].forEach(i=>{ const el=$(i); if(el) el.value=today; });
   await consumeInvite(user);   // if they arrived via an invite link, link them to their upline
   await refresh();
 }
@@ -440,13 +467,14 @@ async function consumeInvite(user){
 }
 
 async function refresh(){
-  const [L,S,D,T]=await Promise.all([
+  const [L,S,D,T,A]=await Promise.all([
     sb.from("leads").select("*").order("date"),
     sb.from("sales").select("*").order("date"),
     sb.from("work_days").select("*").order("date"),
-    sb.from("downline").select("*").order("ap",{ascending:false})
+    sb.from("downline").select("*").order("ap",{ascending:false}),
+    sb.from("activity").select("*").order("date")
   ]);
-  leads=L.data||[]; sales=S.data||[]; days=D.data||[]; team=T.data||[];
+  leads=L.data||[]; sales=S.data||[]; days=D.data||[]; team=T.data||[]; activity=A.data||[];
   await loadLinked();
   renderAll();
 }
@@ -502,6 +530,7 @@ async function saveEdit(table,id){
   else if(table==="sales"){ obj={date:gv("e_date"),client:gv("e_client")||"-",carrier:gv("e_carrier"),product:gv("e_product")||"-",ap:+gv("e_ap")||0,status:gv("e_status")}; }
   else if(table==="work_days"){ obj={date:gv("e_date"),hours:+gv("e_hours")||0,dials:+gv("e_dials")||0,appts:+gv("e_appts")||0,notes:gv("e_notes")||""}; }
   else if(table==="downline"){ obj={name:gv("e_name")||"-",tier:gv("e_tier"),status:gv("e_status"),ap:+gv("e_ap")||0,sales:+gv("e_sales")||0,contact:gv("e_contact")||null}; }
+  else if(table==="activity"){ obj={date:gv("e_date"),dials:+gv("e_dials")||0,pickups:+gv("e_pickups")||0,presentations:+gv("e_pres")||0,sales:+gv("e_asales")||0}; }
   const {error}=await sb.from(table).update(obj).eq("id",id);
   if(error){alert("Save failed: "+error.message);return;}
   editing={table:null,id:null}; await refresh();
@@ -521,6 +550,10 @@ function addSale(){ if(!$("a_ap").value)return;
 function addDay(){ if(!$("t_hours").value)return;
   insert("work_days",{date:$("t_date").value,hours:+$("t_hours").value||0,dials:+$("t_dials").value||0,appts:+$("t_appts").value||0,notes:$("t_notes").value||""});
   $("t_hours").value=$("t_dials").value=$("t_appts").value=$("t_notes").value=""; }
+function addActivity(){
+  if(!$("ac_dials").value && !$("ac_pickups").value && !$("ac_pres").value && !$("ac_sales").value) return;
+  insert("activity",{date:$("ac_date").value,dials:+$("ac_dials").value||0,pickups:+$("ac_pickups").value||0,presentations:+$("ac_pres").value||0,sales:+$("ac_sales").value||0});
+  $("ac_dials").value=$("ac_pickups").value=$("ac_pres").value=$("ac_sales").value=""; }
 function addAgent(){ if(!$("d_name").value)return;
   const ex=team.find(t=>(t.name||"").toLowerCase()===$("d_name").value.toLowerCase());
   const rec={name:$("d_name").value,tier:$("d_tier").value,status:$("d_status").value,ap:+$("d_ap").value||0,sales:+$("d_sales").value||0,contact:$("d_contact").value||null};
@@ -575,6 +608,26 @@ function renderAll(){
   $("teamBody").innerHTML = team.length? team.map(t=> isEditing("downline",t.id)
     ? `<tr><td><input id="e_name" value="${esc(t.name)}"></td><td><select id="e_tier">${opts(["Personal Recruit","Level 2","Level 3+"],t.tier)}</select></td><td><select id="e_status">${opts(["Active","Warming","Inactive"],t.status)}</select></td><td><input type="number" id="e_ap" value="${t.ap}"></td><td><input type="number" id="e_sales" value="${t.sales}"></td><td><input type="date" id="e_contact" value="${t.contact||""}"></td><td>${saveBtns("downline",t.id)}</td></tr>`
     : `<tr><td>${esc(t.name)}</td><td>${t.tier}</td><td>${pill(t.status)}</td><td class="num">${money(t.ap)}</td><td class="num">${t.sales}</td><td>${t.contact?fmt(t.contact):"-"}</td><td>${editBtns("downline",t.id)}</td></tr>`).join("") : emptyRow(7,"No manual agents. Add one above to track a recruit by hand.");
+
+  // ---- Activity funnel (scoped to selected period) ----
+  const mA=activity.filter(a=>inPeriod(a.date));
+  const fDials=mA.reduce((x,a)=>x+ +a.dials,0), fPickups=mA.reduce((x,a)=>x+ +a.pickups,0), fPres=mA.reduce((x,a)=>x+ +a.presentations,0), fSales=mA.reduce((x,a)=>x+ +a.sales,0);
+  const pct=(n,d)=>d?Math.round(n/d*100):0;
+  $("funnelKpis").innerHTML = card("Dials",fDials.toLocaleString(),scopeWord)
+    + card("Pickups",fPickups.toLocaleString(),pct(fPickups,fDials)+"% of dials")
+    + card("Presentations",fPres.toLocaleString(),pct(fPres,fPickups)+"% of pickups")
+    + card("Sales",fSales.toLocaleString(),pct(fSales,fPres)+"% close rate",fSales?"pos":"");
+  const maxF=Math.max(fDials,1);
+  const frow=(label,val,rate)=>`<div class="funnel-row"><div class="funnel-label">${label}</div><div class="funnel-track"><div class="funnel-fill" style="width:${Math.max(val/maxF*100,4)}%">${val}</div></div><div class="funnel-rate">${rate}</div></div>`;
+  $("funnelBars").innerHTML =
+      frow("Dials",fDials,"&mdash;")
+    + frow("Pickups",fPickups,`<b>${pct(fPickups,fDials)}%</b> pickup`)
+    + frow("Presentations",fPres,`<b>${pct(fPres,fPickups)}%</b> booked`)
+    + frow("Sales",fSales,`<b>${pct(fSales,fPres)}%</b> close`);
+  $("actBody").innerHTML = mA.length? mA.slice().reverse().map(a=> isEditing("activity",a.id)
+    ? `<tr><td><input type="date" id="e_date" value="${a.date||""}"></td><td><input type="number" id="e_dials" value="${a.dials}"></td><td><input type="number" id="e_pickups" value="${a.pickups}"></td><td><input type="number" id="e_pres" value="${a.presentations}"></td><td><input type="number" id="e_asales" value="${a.sales}"></td><td>${saveBtns("activity",a.id)}</td></tr>`
+    : `<tr><td>${fmt(a.date)}</td><td class="num">${a.dials}</td><td class="num">${a.pickups}</td><td class="num">${a.presentations}</td><td class="num">${a.sales}</td><td>${editBtns("activity",a.id)}</td></tr>`).join("") : emptyRow(6,"No activity logged for "+scopeWord+".");
+
   renderBars();
 }
 // trend bars: 6 buckets of the current scope (6 days / 6 weeks / 6 months), ending at refDate's period
