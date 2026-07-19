@@ -101,6 +101,15 @@
   .funnel-fill { height:100%; background:linear-gradient(90deg,var(--saber),var(--saber-soft)); border-radius:6px 0 0 6px; display:flex; align-items:center; justify-content:flex-end; padding-right:10px; color:#fff; font-weight:700; font-size:13px; box-shadow:0 0 12px rgba(255,38,48,.4); min-width:34px; transition:width .4s; }
   .funnel-rate { width:96px; text-align:right; font-size:12px; color:var(--dim); flex-shrink:0; }
   .funnel-rate b { color:var(--white); }
+  .tapgrid { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:14px; }
+  .tapcard { background:var(--bg2); border:1px solid var(--edge); border-radius:10px; padding:18px 14px; text-align:center; }
+  .tapcount { font-size:44px; font-weight:800; color:var(--white); font-variant-numeric:tabular-nums; line-height:1; }
+  .taplabel { font-size:11px; text-transform:uppercase; letter-spacing:2px; color:var(--dim); margin:6px 0 14px; }
+  .taprow { display:flex; gap:8px; justify-content:center; }
+  .tapbtn { flex:1; max-width:90px; padding:14px 0; font-size:18px; font-weight:800; font-family:inherit; cursor:pointer; border:none; border-radius:8px; background:var(--saber); color:#fff; box-shadow:var(--glow-soft); transition:box-shadow .12s,transform .05s; }
+  .tapbtn:hover { box-shadow:var(--glow); } .tapbtn:active { transform:scale(.94); }
+  .tapbtn.minus { background:var(--bg); color:var(--dim); border:1px solid var(--edge); box-shadow:none; max-width:56px; font-size:22px; }
+  .tapbtn.minus:hover { color:var(--saber); border-color:var(--saber); }
   /* ===== Cinematic intro: aces deal, chip spins, camera zooms INTO the chip ===== */
   #intro {
     position:fixed; inset:0; z-index:9999; overflow:hidden;
@@ -315,20 +324,48 @@
   </section>
 
   <section class="panel" id="activity">
-    <div class="card"><h2>Log Activity</h2>
+    <div class="card"><h2>Today's Tally <span style="font-weight:400;color:var(--dim);text-transform:none;letter-spacing:0;font-size:11px;" id="tallyDate"></span></h2>
+      <div class="tapgrid">
+        <div class="tapcard">
+          <div class="tapcount" id="tap_dials">0</div>
+          <div class="taplabel">Dials</div>
+          <div class="taprow"><button class="tapbtn minus" onclick="tap('dials',-1)">&minus;</button><button class="tapbtn" onclick="tap('dials',1)">+1</button></div>
+        </div>
+        <div class="tapcard">
+          <div class="tapcount" id="tap_pickups">0</div>
+          <div class="taplabel">Pickups</div>
+          <div class="taprow"><button class="tapbtn minus" onclick="tap('pickups',-1)">&minus;</button><button class="tapbtn" onclick="tap('pickups',1)">+1</button></div>
+        </div>
+        <div class="tapcard">
+          <div class="tapcount" id="tap_presentations">0</div>
+          <div class="taplabel">Presentations</div>
+          <div class="taprow"><button class="tapbtn minus" onclick="tap('presentations',-1)">&minus;</button><button class="tapbtn" onclick="tap('presentations',1)">+1</button></div>
+        </div>
+        <div class="tapcard">
+          <div class="tapcount" id="tap_sales">0</div>
+          <div class="taplabel">Sales</div>
+          <div class="taprow"><button class="tapbtn minus" onclick="tap('sales',-1)">&minus;</button><button class="tapbtn" onclick="tap('sales',1)">+1</button></div>
+        </div>
+      </div>
+      <div id="tapStatus" style="font-size:12px;color:var(--dim);margin-top:12px;font-style:italic;">Tap as you go — every tap saves automatically.</div>
+    </div>
+
+    <div class="kpis" id="funnelKpis"></div>
+    <div class="card"><h2>Your Funnel <span style="font-weight:400;color:var(--dim);text-transform:none;letter-spacing:0;font-size:11px;">(conversion at each stage)</span></h2>
+      <div id="funnelBars"></div>
+    </div>
+
+    <div class="card"><h2>Backfill a Past Day <span style="font-weight:400;color:var(--dim);text-transform:none;letter-spacing:0;font-size:11px;">(if you forgot to tap)</span></h2>
       <div class="row">
         <div><label>Date</label><input type="date" id="ac_date"></div>
         <div><label>Dials</label><input type="number" id="ac_dials" min="0" placeholder="120"></div>
         <div><label>Pickups</label><input type="number" id="ac_pickups" min="0" placeholder="30"></div>
         <div><label>Presentations</label><input type="number" id="ac_pres" min="0" placeholder="8"></div>
         <div><label>Sales</label><input type="number" id="ac_sales" min="0" placeholder="2"></div>
-        <div><button class="btn" onclick="addActivity()">Add Entry</button></div>
+        <div><button class="btn" onclick="addActivity()">Save Day</button></div>
       </div>
     </div>
-    <div class="kpis" id="funnelKpis"></div>
-    <div class="card"><h2>Your Funnel <span style="font-weight:400;color:var(--dim);text-transform:none;letter-spacing:0;font-size:11px;">(conversion at each stage)</span></h2>
-      <div id="funnelBars"></div>
-    </div>
+
     <div class="card"><h2>Activity Log</h2>
       <table><thead><tr><th>Date</th><th class="num">Dials</th><th class="num">Pickups</th><th class="num">Presentations</th><th class="num">Sales</th><th></th></tr></thead><tbody id="actBody"></tbody></table>
     </div>
@@ -554,6 +591,37 @@ function addActivity(){
   if(!$("ac_dials").value && !$("ac_pickups").value && !$("ac_pres").value && !$("ac_sales").value) return;
   insert("activity",{date:$("ac_date").value,dials:+$("ac_dials").value||0,pickups:+$("ac_pickups").value||0,presentations:+$("ac_pres").value||0,sales:+$("ac_sales").value||0});
   $("ac_dials").value=$("ac_pickups").value=$("ac_pres").value=$("ac_sales").value=""; }
+
+// Live tap-to-count for TODAY. Finds today's row (or creates it), increments the field, saves immediately.
+let tapBusy=false;
+async function tap(field,delta){
+  if(tapBusy) return;            // avoid double-fire on fast taps
+  tapBusy=true;
+  const today=new Date().toISOString().slice(0,10);
+  try{
+    let row=activity.find(a=>a.date===today);
+    if(!row){
+      const {data,error}=await sb.from("activity").insert({date:today,dials:0,pickups:0,presentations:0,sales:0}).select().single();
+      if(error) throw error;
+      row=data; activity.push(row);
+    }
+    const next=Math.max(0,(+row[field]||0)+delta);
+    const {error}=await sb.from("activity").update({[field]:next}).eq("id",row.id);
+    if(error) throw error;
+    row[field]=next;
+    updateTapDisplay(); renderAll();
+    flashStatus("Saved.");
+  }catch(e){ flashStatus("Save failed: "+e.message); }
+  tapBusy=false;
+}
+function updateTapDisplay(){
+  const today=new Date().toISOString().slice(0,10);
+  const row=activity.find(a=>a.date===today)||{dials:0,pickups:0,presentations:0,sales:0};
+  ["dials","pickups","presentations","sales"].forEach(f=>{ const el=$("tap_"+f); if(el) el.textContent=row[f]||0; });
+  const td=$("tallyDate"); if(td) td.textContent="· "+new Date(today+"T00:00").toLocaleDateString(undefined,{weekday:"short",month:"short",day:"numeric"});
+}
+let statusTimer=null;
+function flashStatus(msg){ const s=$("tapStatus"); if(!s)return; s.textContent=msg; clearTimeout(statusTimer); statusTimer=setTimeout(()=>{s.textContent="Tap as you go — every tap saves automatically.";},1500); }
 function addAgent(){ if(!$("d_name").value)return;
   const ex=team.find(t=>(t.name||"").toLowerCase()===$("d_name").value.toLowerCase());
   const rec={name:$("d_name").value,tier:$("d_tier").value,status:$("d_status").value,ap:+$("d_ap").value||0,sales:+$("d_sales").value||0,contact:$("d_contact").value||null};
@@ -627,6 +695,7 @@ function renderAll(){
   $("actBody").innerHTML = mA.length? mA.slice().reverse().map(a=> isEditing("activity",a.id)
     ? `<tr><td><input type="date" id="e_date" value="${a.date||""}"></td><td><input type="number" id="e_dials" value="${a.dials}"></td><td><input type="number" id="e_pickups" value="${a.pickups}"></td><td><input type="number" id="e_pres" value="${a.presentations}"></td><td><input type="number" id="e_asales" value="${a.sales}"></td><td>${saveBtns("activity",a.id)}</td></tr>`
     : `<tr><td>${fmt(a.date)}</td><td class="num">${a.dials}</td><td class="num">${a.pickups}</td><td class="num">${a.presentations}</td><td class="num">${a.sales}</td><td>${editBtns("activity",a.id)}</td></tr>`).join("") : emptyRow(6,"No activity logged for "+scopeWord+".");
+  updateTapDisplay();
 
   renderBars();
 }
