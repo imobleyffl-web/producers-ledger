@@ -111,6 +111,7 @@
   .train-title { font-size:14px; font-weight:600; color:var(--white); line-height:1.3; }
   .train-del { color:var(--dimmer); cursor:pointer; font-size:16px; flex-shrink:0; } .train-del:hover{ color:var(--saber); }
   .train-empty { color:var(--dimmer); font-style:italic; text-align:center; padding:40px; }
+  .sched-empty { color:var(--dimmer); font-style:italic; text-align:center; padding:28px; }
   .tapgrid { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:14px; }
   .tapcard { background:var(--bg2); border:1px solid var(--edge); border-radius:10px; padding:18px 14px; text-align:center; }
   .tapcount { font-size:44px; font-weight:800; color:var(--white); font-variant-numeric:tabular-nums; line-height:1; }
@@ -239,6 +240,16 @@
   </nav>
 
   <section class="panel active" id="dash">
+    <div class="card" id="schedCard" style="padding:0;overflow:hidden;">
+      <div id="schedImgWrap" style="display:none;"><img id="schedImg" alt="This week's training schedule" style="width:100%;display:block;"></div>
+      <div id="schedEmpty" class="sched-empty">No training schedule posted yet this week.</div>
+      <div id="schedControls" style="display:none;padding:14px 18px;border-top:1px solid var(--edge);display:none;align-items:center;gap:12px;flex-wrap:wrap;">
+        <label class="btn" style="cursor:pointer;margin:0;">Upload This Week's Schedule<input type="file" id="schedFile" accept="image/*" style="display:none;" onchange="uploadSchedule(event)"></label>
+        <button class="btn" style="background:none;border:1px solid var(--edge);color:var(--dim);" onclick="clearSchedule()">Remove</button>
+        <span id="schedStatus" style="font-size:12px;color:var(--dim);"></span>
+      </div>
+    </div>
+
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:12px;">
       <div class="seg" id="scopeSeg">
         <button data-scope="day">Day</button>
@@ -515,6 +526,7 @@ async function refresh(){
     sb.from("training").select("*").order("created_at")
   ]);
   leads=L.data||[]; sales=S.data||[]; days=D.data||[]; team=T.data||[]; activity=A.data||[]; training=TR.data||[];
+  await loadSchedule();
   await loadLinked();
   renderAll();
 }
@@ -658,6 +670,44 @@ async function removeTraining(id){
   if(error){ alert("Delete failed: "+error.message); return; }
   await refresh();
 }
+// ===== Weekly training schedule image (Supabase Storage) =====
+let scheduleUrl=null;
+async function loadSchedule(){
+  try{
+    const {data}=await sb.from("settings").select("value").eq("key","schedule_url").maybeSingle();
+    scheduleUrl=data?data.value:null;
+  }catch(e){ scheduleUrl=null; }
+  renderSchedule();
+}
+function renderSchedule(){
+  const wrap=$("schedImgWrap"), empty=$("schedEmpty"), ctrls=$("schedControls"), img=$("schedImg");
+  if(scheduleUrl){ img.src=scheduleUrl; wrap.style.display="block"; empty.style.display="none"; }
+  else { wrap.style.display="none"; empty.style.display="block"; }
+  if(ctrls) ctrls.style.display=isOwner()?"flex":"none";
+}
+async function uploadSchedule(ev){
+  if(!isOwner()) return;
+  const file=ev.target.files[0]; if(!file) return;
+  const st=$("schedStatus"); st.textContent="Uploading…";
+  try{
+    const path="schedule/current-"+Date.now()+"-"+file.name.replace(/[^\w.\-]/g,"_");
+    const {error:upErr}=await sb.storage.from("schedule").upload(path,file,{upsert:true,contentType:file.type});
+    if(upErr) throw upErr;
+    const {data:pub}=sb.storage.from("schedule").getPublicUrl(path);
+    const url=pub.publicUrl;
+    const {error:setErr}=await sb.from("settings").upsert({key:"schedule_url",value:url});
+    if(setErr) throw setErr;
+    scheduleUrl=url; st.textContent="Posted."; renderSchedule();
+  }catch(e){ st.textContent="Upload failed: "+e.message; }
+  ev.target.value="";
+}
+async function clearSchedule(){
+  if(!isOwner()) return;
+  const {error}=await sb.from("settings").upsert({key:"schedule_url",value:null});
+  if(error){ $("schedStatus").textContent="Failed: "+error.message; return; }
+  scheduleUrl=null; renderSchedule();
+}
+
 function renderTraining(){
   const addCard=$("trainAddCard"); if(addCard) addCard.style.display=isOwner()?"block":"none";
   const lib=$("trainLib"); if(!lib) return;
