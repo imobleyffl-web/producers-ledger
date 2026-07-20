@@ -565,20 +565,24 @@ async function loadTeam(){
     myProfile=data||{join_code:null,upline_id:null};
   }catch(e){ myProfile={join_code:null,upline_id:null}; }
 
-  // everyone in my downtree — RLS only returns people below me, so this is safe
+  // Downtree comes from profiles (RLS returns only people below me).
+  // AP + policy count come from the pre-computed team_stats summary — NO live
+  // recursive read of the sales table, so this can never blank the app.
   orgTree=[];
   try{
-    const {data:profs}=await sb.from("profiles").select("id,email,join_code,upline_id");
-    const mine=(profs||[]).filter(p=>p.id!==myUid); // my own row excluded from the tree list
+    const {data:profs}=await sb.from("profiles").select("id,email,upline_id");
+    const mine=(profs||[]).filter(p=>p.id!==myUid);
     if(mine.length){
       const ids=mine.map(p=>p.id);
-      const monthStart=new Date(); monthStart.setDate(1); monthStart.setHours(0,0,0,0);
-      const {data:rows}=await sb.from("sales").select("user_id,ap,date").in("user_id",ids);
-      orgTree=mine.map(p=>{
-        const s=(rows||[]).filter(r=>r.user_id===p.id && new Date(r.date+"T00:00")>=monthStart);
-        return { id:p.id, email:p.email||"-", upline_id:p.upline_id, code:p.join_code,
-                 ap:s.reduce((a,r)=>a+ +r.ap,0), sales:s.length };
-      });
+      let stats={};
+      try{
+        const {data:st}=await sb.from("team_stats").select("user_id,month_ap,month_policies").in("user_id",ids);
+        (st||[]).forEach(s=>{ stats[s.user_id]={ap:+s.month_ap||0,pol:+s.month_policies||0}; });
+      }catch(e){}
+      orgTree=mine.map(p=>({
+        id:p.id, email:p.email||"-", upline_id:p.upline_id,
+        ap:(stats[p.id]?stats[p.id].ap:0), sales:(stats[p.id]?stats[p.id].pol:0)
+      }));
     }
   }catch(e){ orgTree=[]; }
 }
