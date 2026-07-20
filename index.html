@@ -112,6 +112,21 @@
   .train-del { color:var(--dimmer); cursor:pointer; font-size:16px; flex-shrink:0; } .train-del:hover{ color:var(--saber); }
   .train-empty { color:var(--dimmer); font-style:italic; text-align:center; padding:40px; }
   .sched-empty { color:var(--dimmer); font-style:italic; text-align:center; padding:28px; }
+  .lgbar { position:relative; height:26px; background:var(--bg2); border:1px solid var(--edge); border-radius:14px; overflow:visible; }
+  .lgfill { position:relative; height:100%; width:0%; border-radius:14px;
+    background:linear-gradient(90deg,#b3121b,var(--saber) 60%,#ff5a62);
+    box-shadow:0 0 14px rgba(255,38,48,.6); transition:width .8s cubic-bezier(.4,0,.2,1); min-width:0; }
+  .lgfill::after { /* moving sheen inside the bar */
+    content:""; position:absolute; inset:0; border-radius:14px;
+    background:linear-gradient(100deg,transparent 30%,rgba(255,255,255,.35) 50%,transparent 70%);
+    background-size:220% 100%; animation:lgsheen 1.8s linear infinite;
+  }
+  @keyframes lgsheen { 0%{background-position:120% 0;} 100%{background-position:-120% 0;} }
+  .bolt { position:absolute; top:50%; right:-11px; width:22px; height:34px; transform:translateY(-50%);
+    filter:drop-shadow(0 0 6px rgba(255,255,255,.9)); animation:boltPulse 1.1s ease-in-out infinite; }
+  .bolt svg { width:100%; height:100%; display:block; }
+  @keyframes boltPulse { 0%,100%{transform:translateY(-50%) scale(1);} 50%{transform:translateY(-50%) scale(1.18);} }
+  .lgfill.empty .bolt { display:none; }
   .tapgrid { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:14px; }
   .tapcard { background:var(--bg2); border:1px solid var(--edge); border-radius:10px; padding:18px 14px; text-align:center; }
   .tapcount { font-size:44px; font-weight:800; color:var(--white); font-variant-numeric:tabular-nums; line-height:1; }
@@ -263,6 +278,30 @@
       </div>
     </div>
     <div id="periodCaption" style="font-size:11px;letter-spacing:1px;text-transform:uppercase;color:var(--dim);margin-bottom:18px;"></div>
+
+    <div class="card" id="goalCard">
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:14px;">
+        <h2 style="margin:0;" id="goalTitle">AP Goal</h2>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <span style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--dim);" id="goalTargetLabel">Set target</span>
+          <input type="number" id="goalInput" placeholder="Target $" style="width:120px;padding:7px 9px;">
+          <button class="btn" onclick="saveGoal()" style="padding:8px 14px;">Set</button>
+        </div>
+      </div>
+      <div class="lgbar">
+        <div class="lgfill" id="goalFill">
+          <div class="bolt" id="goalBolt">
+            <svg viewBox="0 0 24 40"><polygon points="13,0 2,22 10,22 7,40 22,15 13,15" fill="#fff" stroke="#111" stroke-width="1.5" stroke-linejoin="round"/></svg>
+          </div>
+        </div>
+      </div>
+      <div style="display:flex;justify-content:space-between;margin-top:10px;font-size:13px;">
+        <span id="goalCurrent" style="color:var(--white);font-weight:700;">$0</span>
+        <span id="goalPct" style="color:var(--saber-soft);font-weight:700;">0%</span>
+        <span id="goalTarget" style="color:var(--dim);">of $0</span>
+      </div>
+    </div>
+
     <div class="kpis" id="kpis"></div>
     <div class="card"><h2>Annual Premium Trend</h2><div class="barwrap"><div class="bars" id="cpaBars"></div></div></div>
     <div class="card"><h2>Return on Lead Spend (AP &divide; Spend)</h2><div class="barwrap"><div class="bars" id="roiBars"></div></div></div>
@@ -426,7 +465,7 @@ const ym = d => (d||"").slice(0,7);
 let scope = "month";              // "day" | "week" | "month"
 let refDate = new Date();         // reference date anchoring the current period
 const ymd = d => d.toISOString().slice(0,10);
-let leads=[], sales=[], days=[], team=[], activity=[], training=[];
+let leads=[], sales=[], days=[], team=[], activity=[], training=[], goals={};
 let myUid=null, linkedAgents=[];   // linkedAgents: [{id,email,full_name,ap,sales,joined}]
 
 // ---- period boundaries ----
@@ -527,6 +566,7 @@ async function refresh(){
   ]);
   leads=L.data||[]; sales=S.data||[]; days=D.data||[]; team=T.data||[]; activity=A.data||[]; training=TR.data||[];
   await loadSchedule();
+  await loadGoals();
   await loadLinked();
   renderAll();
 }
@@ -670,6 +710,39 @@ async function removeTraining(id){
   if(error){ alert("Delete failed: "+error.message); return; }
   await refresh();
 }
+// ===== AP goals (per-user, weekly + monthly) =====
+async function loadGoals(){
+  goals={};
+  try{
+    const {data}=await sb.from("goals").select("*");
+    (data||[]).forEach(g=>{ goals[g.period]=+g.target||0; });
+  }catch(e){}
+}
+async function saveGoal(){
+  const val=+$("goalInput").value||0;
+  const period=(scope==="week")?"week":"month";
+  const {error}=await sb.from("goals").upsert({period,target:val},{onConflict:"user_id,period"});
+  if(error){ alert("Couldn't save goal: "+error.message); return; }
+  goals[period]=val; $("goalInput").value=""; renderGoal();
+}
+function renderGoal(){
+  const isWeek=(scope==="week");
+  const period=isWeek?"week":"month";
+  const target=goals[period]||0;
+  const mS=sales.filter(s=>inPeriod(s.date));
+  const current=mS.reduce((a,s)=>a+ +s.ap,0);
+  const pct=target>0?Math.min(current/target*100,100):0;
+  $("goalTitle").textContent=(isWeek?"Weekly":"Monthly")+" AP Goal";
+  $("goalTargetLabel").textContent= target>0?"Target":"Set target";
+  const fill=$("goalFill");
+  fill.style.width=pct+"%";
+  fill.classList.toggle("empty",!(target>0)|| pct<=0);
+  $("goalCurrent").textContent=money(current);
+  $("goalPct").textContent=(target>0?Math.round(pct):0)+"%";
+  $("goalTarget").textContent="of "+money(target);
+  $("goalPct").style.color = (target>0 && current>=target) ? "var(--green)" : "var(--saber-soft)";
+}
+
 // ===== Weekly training schedule image (Supabase Storage) =====
 let scheduleUrl=null;
 async function loadSchedule(){
@@ -750,6 +823,7 @@ $("refDate").addEventListener("change",e=>{ if(e.target.value){ refDate=new Date
 
 function renderAll(){
   $("periodCaption").textContent = scope + " · " + periodCaption();
+  renderGoal();
   const scopeWord = scope==="day"?"today":(scope==="week"?"this week":"this month");
   const mL=leads.filter(l=>inPeriod(l.date)), mS=sales.filter(s=>inPeriod(s.date)), mD=days.filter(d=>inPeriod(d.date));
   const spend=mL.reduce((a,l)=>a+ +l.cost,0), leadQty=mL.reduce((a,l)=>a+ +l.qty,0);
