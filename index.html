@@ -101,6 +101,16 @@
   .funnel-fill { height:100%; background:linear-gradient(90deg,var(--saber),var(--saber-soft)); border-radius:6px 0 0 6px; display:flex; align-items:center; justify-content:flex-end; padding-right:10px; color:#fff; font-weight:700; font-size:13px; box-shadow:0 0 12px rgba(255,38,48,.4); min-width:34px; transition:width .4s; }
   .funnel-rate { width:96px; text-align:right; font-size:12px; color:var(--dim); flex-shrink:0; }
   .funnel-rate b { color:var(--white); }
+  .train-cat { font-size:12px; text-transform:uppercase; letter-spacing:2px; color:var(--saber-soft); margin:22px 0 12px; display:flex; align-items:center; gap:12px; font-weight:700; }
+  .train-cat::after { content:""; flex:1; height:1px; background:linear-gradient(90deg,rgba(255,38,48,.5),transparent); }
+  .train-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(260px,1fr)); gap:16px; }
+  .train-card { background:var(--panel); border:1px solid var(--edge); border-radius:10px; overflow:hidden; }
+  .train-thumb { position:relative; aspect-ratio:16/9; background:#000; }
+  .train-thumb iframe { width:100%; height:100%; border:0; display:block; }
+  .train-meta { padding:12px 14px; display:flex; justify-content:space-between; align-items:flex-start; gap:8px; }
+  .train-title { font-size:14px; font-weight:600; color:var(--white); line-height:1.3; }
+  .train-del { color:var(--dimmer); cursor:pointer; font-size:16px; flex-shrink:0; } .train-del:hover{ color:var(--saber); }
+  .train-empty { color:var(--dimmer); font-style:italic; text-align:center; padding:40px; }
   .tapgrid { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:14px; }
   .tapcard { background:var(--bg2); border:1px solid var(--edge); border-radius:10px; padding:18px 14px; text-align:center; }
   .tapcount { font-size:44px; font-weight:800; color:var(--white); font-variant-numeric:tabular-nums; line-height:1; }
@@ -225,6 +235,7 @@
     <button data-tab="time">Hours &amp; Days</button>
     <button data-tab="activity">Activity</button>
     <button data-tab="team">Downline</button>
+    <button data-tab="training">Training</button>
   </nav>
 
   <section class="panel active" id="dash">
@@ -372,11 +383,30 @@
       <table><thead><tr><th>Agent</th><th>Tier</th><th>Status</th><th class="num">AP (mo)</th><th class="num">Sales</th><th>Last Contact</th><th></th></tr></thead><tbody id="teamBody"></tbody></table>
     </div>
   </section>
+
+  <section class="panel" id="training">
+    <div class="card" id="trainAddCard" style="display:none;"><h2>Add Training Video <span style="font-weight:400;color:var(--dim);text-transform:none;letter-spacing:0;font-size:11px;">(owner only)</span></h2>
+      <div class="row">
+        <div style="flex:2;"><label>Title</label><input id="tv_title" placeholder="e.g. Handling the price objection"></div>
+        <div><label>Category</label><input id="tv_cat" list="tv_cats" placeholder="Scripts, Onboarding…"><datalist id="tv_cats"><option>Onboarding</option><option>Scripts</option><option>Objection Handling</option><option>Product Knowledge</option><option>Lead Generation</option><option>Closing</option><option>Systems &amp; Tools</option></datalist></div>
+      </div>
+      <div class="row" style="margin-top:12px;">
+        <div style="flex:3;"><label>Google Drive Share Link</label><input id="tv_url" placeholder="https://drive.google.com/file/d/…/view"></div>
+        <div><button class="btn" onclick="addTraining()">Add Video</button></div>
+      </div>
+      <div id="tv_msg" style="font-size:12px;color:var(--dim);margin-top:10px;">Set each Drive video to "Anyone with the link can view" so your team can watch it.</div>
+    </div>
+    <div id="trainLib"></div>
+  </section>
 </div>
 
 <script>
 const SUPABASE_URL = "https://eblopzfcftsulhtvextj.supabase.co";
 const SUPABASE_KEY = "sb_publishable_-9zVR_nmKMvcGFv7CoDxkA_l_6ugGQX";
+// Your account's user id — only this account can add/remove training videos.
+// Paste your UID from Supabase > Authentication > Users (click your account, copy the UID).
+// Accounts allowed to add/remove training videos.
+const OWNER_UIDS = ["470b702e-acf8-443f-8441-bcba22f4562f","c8ebc2ae-0b83-45d9-980e-7c6949367883"];
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 const $ = id => document.getElementById(id);
@@ -385,7 +415,7 @@ const ym = d => (d||"").slice(0,7);
 let scope = "month";              // "day" | "week" | "month"
 let refDate = new Date();         // reference date anchoring the current period
 const ymd = d => d.toISOString().slice(0,10);
-let leads=[], sales=[], days=[], team=[], activity=[];
+let leads=[], sales=[], days=[], team=[], activity=[], training=[];
 let myUid=null, linkedAgents=[];   // linkedAgents: [{id,email,full_name,ap,sales,joined}]
 
 // ---- period boundaries ----
@@ -476,14 +506,15 @@ async function consumeInvite(user){
 }
 
 async function refresh(){
-  const [L,S,D,T,A]=await Promise.all([
+  const [L,S,D,T,A,TR]=await Promise.all([
     sb.from("leads").select("*").order("date"),
     sb.from("sales").select("*").order("date"),
     sb.from("work_days").select("*").order("date"),
     sb.from("downline").select("*").order("ap",{ascending:false}),
-    sb.from("activity").select("*").order("date")
+    sb.from("activity").select("*").order("date"),
+    sb.from("training").select("*").order("created_at")
   ]);
-  leads=L.data||[]; sales=S.data||[]; days=D.data||[]; team=T.data||[]; activity=A.data||[];
+  leads=L.data||[]; sales=S.data||[]; days=D.data||[]; team=T.data||[]; activity=A.data||[]; training=TR.data||[];
   await loadLinked();
   renderAll();
 }
@@ -594,6 +625,60 @@ function updateTapDisplay(){
 }
 let statusTimer=null;
 function flashStatus(msg){ const s=$("tapStatus"); if(!s)return; s.textContent=msg; clearTimeout(statusTimer); statusTimer=setTimeout(()=>{s.textContent="Tap as you go — every tap saves automatically.";},1500); }
+
+// ===== Training videos =====
+function isOwner(){ return myUid && OWNER_UIDS.includes(myUid); }
+// Convert a Google Drive share link to an embeddable preview URL.
+function driveEmbed(url){
+  if(!url) return null;
+  // /file/d/FILEID/view  OR  ?id=FILEID
+  let m=url.match(/\/file\/d\/([^/]+)/) || url.match(/[?&]id=([^&]+)/);
+  if(m) return "https://drive.google.com/file/d/"+m[1]+"/preview";
+  // youtube fallback
+  let y=url.match(/(?:youtu\.be\/|v=)([\w-]{11})/);
+  if(y) return "https://www.youtube.com/embed/"+y[1];
+  // vimeo fallback
+  let v=url.match(/vimeo\.com\/(\d+)/);
+  if(v) return "https://player.vimeo.com/video/"+v[1];
+  return url; // last resort: use as-is
+}
+async function addTraining(){
+  if(!isOwner()) return;
+  const title=$("tv_title").value.trim(), cat=$("tv_cat").value.trim()||"General", url=$("tv_url").value.trim();
+  if(!title||!url){ $("tv_msg").textContent="Add a title and a video link."; return; }
+  const {error}=await sb.from("training").insert({title,category:cat,url});
+  if(error){ $("tv_msg").textContent="Save failed: "+error.message; return; }
+  $("tv_title").value=$("tv_url").value="";
+  $("tv_msg").textContent="Added.";
+  await refresh();
+}
+async function removeTraining(id){
+  if(!isOwner()) return;
+  const {error}=await sb.from("training").delete().eq("id",id);
+  if(error){ alert("Delete failed: "+error.message); return; }
+  await refresh();
+}
+function renderTraining(){
+  const addCard=$("trainAddCard"); if(addCard) addCard.style.display=isOwner()?"block":"none";
+  const lib=$("trainLib"); if(!lib) return;
+  if(!training.length){ lib.innerHTML=`<div class="card"><div class="train-empty">No training videos yet.${isOwner()?" Add your first one above.":" Check back soon."}</div></div>`; return; }
+  // group by category
+  const cats={};
+  training.forEach(v=>{ (cats[v.category||"General"]=cats[v.category||"General"]||[]).push(v); });
+  let html="";
+  Object.keys(cats).sort().forEach(cat=>{
+    html+=`<div class="train-cat">${esc(cat)}</div><div class="train-grid">`;
+    cats[cat].forEach(v=>{
+      const emb=driveEmbed(v.url);
+      html+=`<div class="train-card">
+        <div class="train-thumb"><iframe src="${esc(emb)}" allow="autoplay" allowfullscreen loading="lazy"></iframe></div>
+        <div class="train-meta"><div class="train-title">${esc(v.title)}</div>${isOwner()?`<span class="train-del" onclick="removeTraining('${v.id}')" title="Remove">&times;</span>`:""}</div>
+      </div>`;
+    });
+    html+=`</div>`;
+  });
+  lib.innerHTML=html;
+}
 function addAgent(){ if(!$("d_name").value)return;
   const ex=team.find(t=>(t.name||"").toLowerCase()===$("d_name").value.toLowerCase());
   const rec={name:$("d_name").value,tier:$("d_tier").value,status:$("d_status").value,ap:+$("d_ap").value||0,sales:+$("d_sales").value||0,contact:$("d_contact").value||null};
@@ -668,6 +753,7 @@ function renderAll(){
     ? `<tr><td><input type="date" id="e_date" value="${a.date||""}"></td><td><input type="number" id="e_dials" value="${a.dials}"></td><td><input type="number" id="e_pickups" value="${a.pickups}"></td><td><input type="number" id="e_pres" value="${a.presentations}"></td><td><input type="number" id="e_asales" value="${a.sales}"></td><td>${saveBtns("activity",a.id)}</td></tr>`
     : `<tr><td>${fmt(a.date)}</td><td class="num">${a.dials}</td><td class="num">${a.pickups}</td><td class="num">${a.presentations}</td><td class="num">${a.sales}</td><td>${editBtns("activity",a.id)}</td></tr>`).join("") : emptyRow(6,"No activity logged for "+scopeWord+".");
   updateTapDisplay();
+  renderTraining();
 
   renderBars();
 }
