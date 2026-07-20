@@ -545,9 +545,10 @@ async function refresh(){
     sb.from("training").select("*").order("created_at")
   ]);
   leads=L.data||[]; sales=S.data||[]; days=D.data||[]; team=T.data||[]; activity=A.data||[]; training=TR.data||[];
-  await loadSchedule();
-  await loadGoals();
-  await loadTeam();
+  // These are non-core; a failure in any must NEVER blank the dashboard.
+  try{ await loadSchedule(); }catch(e){ console.warn("schedule load failed",e); }
+  try{ await loadGoals(); }catch(e){ console.warn("goals load failed",e); }
+  try{ await loadTeam(); }catch(e){ console.warn("team load failed",e); orgTree=[]; }
   renderAll();
 }
 
@@ -643,26 +644,21 @@ function copyCode(){ if(myProfile.join_code) navigator.clipboard.writeText(myPro
 
 function renderOrg(){
   renderTeamBoxes();
-  const tAP=orgTree.reduce((a,p)=>a+ +p.ap,0), tSales=orgTree.reduce((a,p)=>a+ +p.sales,0);
-  const direct=orgTree.filter(p=>p.upline_id===myUid).length;
-  $("teamKpis").innerHTML = card("Organization Size",orgTree.length,direct+" direct recruits")
-    + card("Org AP (mo)",money(tAP),"everyone below you")
-    + card("Org Sales (mo)",tSales,"this month")
-    + card("Avg AP / Agent",orgTree.length?money(tAP/orgTree.length):"-","");
+  const tAP=orgTree.reduce((a,p)=>a+ +p.ap,0), tPol=orgTree.reduce((a,p)=>a+ +p.sales,0);
+  $("teamKpis").innerHTML = card("Team AP (mo)",money(tAP),orgTree.length+" people below you")
+    + card("Policies Written",tPol,"this month");
   // build nested tree from flat list, rooted at me
   const byUpline={};
   orgTree.forEach(p=>{ (byUpline[p.upline_id]=byUpline[p.upline_id]||[]).push(p); });
-  function subtreeAP(id){ // total AP of a person + everyone below them
-    let t=0; (byUpline[id]||[]).forEach(c=>{ t+=c.ap+subtreeAP(c.id); }); return t;
-  }
+  function subtreeAP(id){ let t=0; (byUpline[id]||[]).forEach(c=>{ t+=c.ap+subtreeAP(c.id); }); return t; }
   function branch(id,depth){
     const kids=(byUpline[id]||[]).sort((a,b)=>b.ap-a.ap);
     return kids.map(p=>{
       const below=subtreeAP(p.id);
       const name=esc(p.email.split("@")[0]);
       return `<div class="org-row" style="padding-left:${depth*22}px;">
-        <span class="org-name">${depth>0?'<span class="org-branch">└</span> ':''}${name}${p.code?` <span class="org-code">${esc(p.code)}</span>`:''}</span>
-        <span class="org-nums"><b>${money(p.ap)}</b>${below>0?` <span class="org-below">+${money(below)} team</span>`:''} · ${p.sales} sales</span>
+        <span class="org-name">${depth>0?'<span class="org-branch">└</span> ':''}${name}</span>
+        <span class="org-nums"><b>${money(p.ap)}</b>${below>0?` <span class="org-below">+${money(below)} team</span>`:''} · ${p.sales} ${p.sales===1?'policy':'policies'}</span>
       </div>` + branch(p.id,depth+1);
     }).join("");
   }
@@ -902,7 +898,7 @@ function renderAll(){
   $("dayBody").innerHTML = mD.length? mD.slice().reverse().map(d=> isEditing("work_days",d.id)
     ? `<tr><td><input type="date" id="e_date" value="${d.date||""}"></td><td><input type="number" id="e_hours" step="0.25" value="${d.hours}"></td><td><input type="number" id="e_dials" value="${d.dials}"></td><td><input type="number" id="e_appts" value="${d.appts}"></td><td><input id="e_notes" value="${esc(d.notes)}"></td><td>${saveBtns("work_days",d.id)}</td></tr>`
     : `<tr><td>${fmt(d.date)}</td><td class="num">${d.hours}</td><td class="num">${d.dials}</td><td class="num">${d.appts}</td><td>${esc(d.notes)}</td><td>${editBtns("work_days",d.id)}</td></tr>`).join("") : emptyRow(6,"No work days logged for "+scopeWord+".");
-  renderOrg();
+  try{ renderOrg(); }catch(e){ console.warn("org render failed",e); }
 
   // ---- Activity funnel (scoped to selected period) ----
   const mA=activity.filter(a=>inPeriod(a.date));
