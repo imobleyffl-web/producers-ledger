@@ -122,11 +122,12 @@
     background-size:220% 100%; animation:lgsheen 1.8s linear infinite;
   }
   @keyframes lgsheen { 0%{background-position:120% 0;} 100%{background-position:-120% 0;} }
-  .bolt { position:absolute; top:50%; right:-11px; width:22px; height:34px; transform:translateY(-50%);
-    filter:drop-shadow(0 0 6px rgba(255,255,255,.9)); animation:boltPulse 1.1s ease-in-out infinite; }
-  .bolt svg { width:100%; height:100%; display:block; }
-  @keyframes boltPulse { 0%,100%{transform:translateY(-50%) scale(1);} 50%{transform:translateY(-50%) scale(1.18);} }
-  .lgfill.empty .bolt { display:none; }
+  .lightning { position:absolute; inset:0; width:100%; height:100%; overflow:visible; opacity:.92; animation:lgFlicker 2.4s steps(1) infinite; }
+  .lightning path { fill:none; vector-effect:non-scaling-stroke; stroke-linejoin:round; stroke-linecap:round; }
+  .lightning .lg-glow { stroke:#fff; stroke-width:6; opacity:.55; filter:blur(1px); }
+  .lightning .lg-core { stroke:#000; stroke-width:2.2; filter:drop-shadow(0 0 3px #fff) drop-shadow(0 0 1px #000); }
+  @keyframes lgFlicker { 0%,100%{opacity:.95;} 8%{opacity:.5;} 10%{opacity:1;} 45%{opacity:.85;} 47%{opacity:.4;} 49%{opacity:1;} 80%{opacity:.9;} }
+  .lgfill.empty .lightning { display:none; }
   .tapgrid { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:14px; }
   .tapcard { background:var(--bg2); border:1px solid var(--edge); border-radius:10px; padding:18px 14px; text-align:center; }
   .tapcount { font-size:44px; font-weight:800; color:var(--white); font-variant-numeric:tabular-nums; line-height:1; }
@@ -290,9 +291,10 @@
       </div>
       <div class="lgbar">
         <div class="lgfill" id="goalFill">
-          <div class="bolt" id="goalBolt">
-            <svg viewBox="0 0 24 40"><polygon points="13,0 2,22 10,22 7,40 22,15 13,15" fill="#fff" stroke="#111" stroke-width="1.5" stroke-linejoin="round"/></svg>
-          </div>
+          <svg class="lightning" id="goalLightning" preserveAspectRatio="none" viewBox="0 0 300 40">
+            <path class="lg-glow" d="M0,20 L26,11 L48,27 L74,8 L100,29 L128,13 L154,31 L184,10 L210,28 L240,12 L268,26 L300,17"/>
+            <path class="lg-core" d="M0,20 L26,11 L48,27 L74,8 L100,29 L128,13 L154,31 L184,10 L210,28 L240,12 L268,26 L300,17"/>
+          </svg>
         </div>
       </div>
       <div style="display:flex;justify-content:space-between;margin-top:10px;font-size:13px;">
